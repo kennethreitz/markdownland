@@ -105,7 +105,15 @@
       let next = "  " + line; // indent one level
       const indentLen = next.length - next.trimStart().length;
       const sib = siblingMarker(v, start, indentLen);
-      if (sib) next = applyMarker(next, sib); // adopt the nested list's numbering
+      const o = OL.exec(next);
+      if (sib) {
+        next = applyMarker(next, sib); // continue an existing nested list
+      } else if (o) {
+        // New nested level: restart with an index style distinct from the
+        // parent (alternate decimal / lower-alpha by depth).
+        const first = Math.floor(indentLen / 2) % 2 === 0 ? "1" : "a";
+        next = `${o[1]}${first}${o[3]} ${o[5]}`;
+      }
       setValue(v.slice(0, start) + next + v.slice(end), start + next.length);
       return true;
     }
