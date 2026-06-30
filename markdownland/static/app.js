@@ -4,6 +4,7 @@
 
   const source = document.getElementById("source");
   const dropzone = document.getElementById("dropzone");
+  const dropzoneMeta = document.getElementById("dropzone-meta");
   const toast = document.getElementById("toast");
   const filePicker = document.getElementById("file-picker");
 
@@ -77,6 +78,17 @@
       .replace(/^-+|-+$/g, "") || "document";
   }
 
+  function buttonLabel(btn) {
+    const spans = [...btn.querySelectorAll("span")].filter((s) =>
+      !s.classList.contains("btn-icon") && !s.classList.contains("chevron"));
+    return (spans.at(-1) || btn).textContent.trim();
+  }
+
+  function setBusy(btn, busy) {
+    btn.classList.toggle("busy", busy);
+    btn.toggleAttribute("aria-busy", busy);
+  }
+
   // ---- file loading ---------------------------------------------------------
 
   function looksLikeMarkdown(file) {
@@ -101,7 +113,7 @@
 
   // Import a non-markdown file by converting it server-side, then open it.
   async function importFile(file) {
-    showToast(`Importing ${file.name}…`);
+    showToast(`Importing ${file.name}...`);
     try {
       const fd = new FormData();
       fd.append("file", file);
@@ -167,20 +179,36 @@
   // ---- drag and drop --------------------------------------------------------
 
   let dragDepth = 0;
+  function describeDraggedFile(e) {
+    const file = e.dataTransfer && e.dataTransfer.items && e.dataTransfer.items[0];
+    if (!dropzoneMeta || !file || file.kind !== "file") return;
+    const name = file.getAsFile()?.name || "document";
+    const mode = looksLikeMarkdown({ name, type: file.type || "" }) ? "open as text" : "convert to markdown";
+    dropzoneMeta.textContent = `${name} - ${mode}`;
+  }
+
   window.addEventListener("dragenter", (e) => {
     if (![...e.dataTransfer.types].includes("Files")) return;
     dragDepth++;
+    describeDraggedFile(e);
     dropzone.hidden = false;
   });
-  window.addEventListener("dragover", (e) => { e.preventDefault(); });
+  window.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    describeDraggedFile(e);
+  });
   window.addEventListener("dragleave", () => {
     dragDepth = Math.max(0, dragDepth - 1);
-    if (dragDepth === 0) dropzone.hidden = true;
+    if (dragDepth === 0) {
+      dropzone.hidden = true;
+      if (dropzoneMeta) dropzoneMeta.textContent = "Markdown, PDF, DOCX, HTML, and more";
+    }
   });
   window.addEventListener("drop", (e) => {
     e.preventDefault();
     dragDepth = 0;
     dropzone.hidden = true;
+    if (dropzoneMeta) dropzoneMeta.textContent = "Markdown, PDF, DOCX, HTML, and more";
     if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
   });
 
@@ -191,7 +219,7 @@
     if (!resp.ok) { showToast(await errorText(resp), true); return; }
     const text = await resp.text();
     await navigator.clipboard.writeText(text);
-    showToast(`Copied as ${btn.textContent.trim()}`);
+    showToast(`Copied as ${buttonLabel(btn)}`);
   }
 
   async function doCopyRich() {
@@ -215,7 +243,7 @@
     if (!resp.ok) { showToast(await errorText(resp), true); return; }
     const blob = await resp.blob();
     saveBlob(blob, filenameFrom(resp, `${safeStem(activeName())}.${key}`));
-    showToast(`Downloaded ${btn.textContent.trim()}`);
+    showToast(`Downloaded ${buttonLabel(btn)}`);
   }
 
   function doSourceDownload() {
@@ -228,7 +256,7 @@
     const btn = e.target.closest("button[data-kind]");
     if (!btn || btn.disabled) return;
     const { kind, key } = btn.dataset;
-    btn.classList.add("busy");
+    setBusy(btn, true);
     try {
       if (kind === "copy") await doCopy(key, btn);
       else if (kind === "copy-rich") await doCopyRich();
@@ -238,7 +266,7 @@
     } catch (err) {
       showToast(String(err.message || err), true);
     } finally {
-      btn.classList.remove("busy");
+      setBusy(btn, false);
     }
   });
 })();

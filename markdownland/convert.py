@@ -125,8 +125,9 @@ TEXT_FORMATS: dict[str, TextFormat] = {
         TextFormat("typst", "Typst", "typst", "typ", "text/x-typst"),
         TextFormat("mediawiki", "MediaWiki", "mediawiki", "wiki", "text/plain"),
         TextFormat("textile", "Textile", "textile", "textile", "text/plain"),
-        TextFormat("docbook", "DocBook", "docbook5", "dbk", "application/docbook+xml",
-                   standalone=True),
+        TextFormat(
+            "docbook", "DocBook", "docbook5", "dbk", "application/docbook+xml", standalone=True
+        ),
         TextFormat("plain", "Plain text", "plain", "txt", "text/plain"),
     ]
 }
@@ -156,10 +157,8 @@ BINARY_FORMATS: dict[str, BinaryFormat] = {
             "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         ),
         BinaryFormat("epub", "EPUB", "epub", "application/epub+zip"),
-        BinaryFormat("rtf", "RTF", "rtf", "application/rtf",
-                     pandoc_to="rtf", extra_args=("-s",)),
-        BinaryFormat("fb2", "FB2", "fb2", "application/x-fictionbook+xml",
-                     pandoc_to="fb2"),
+        BinaryFormat("rtf", "RTF", "rtf", "application/rtf", pandoc_to="rtf", extra_args=("-s",)),
+        BinaryFormat("fb2", "FB2", "fb2", "application/x-fictionbook+xml", pandoc_to="fb2"),
     ]
 }
 
@@ -212,9 +211,17 @@ def _render_mermaid_png(diagram: str) -> bytes:
         cfg = Path(tmp) / "puppeteer.json"
         cfg.write_text('{"args": ["--no-sandbox"]}', encoding="utf-8")
         args = [
-            MMDC, "--input", str(in_path), "--output", str(out_path),
-            "--backgroundColor", "white", "--scale", "3",
-            "--puppeteerConfigFile", str(cfg),
+            MMDC,
+            "--input",
+            str(in_path),
+            "--output",
+            str(out_path),
+            "--backgroundColor",
+            "white",
+            "--scale",
+            "3",
+            "--puppeteerConfigFile",
+            str(cfg),
         ]
         try:
             proc = subprocess.run(args, capture_output=True, timeout=MERMAID_TIMEOUT)

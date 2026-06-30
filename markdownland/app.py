@@ -353,7 +353,11 @@ def _wants_download(data) -> bool:
 
 def _error_fragment(exc: Exception) -> str:
     return (
-        f'<div class="error"><strong>Conversion failed.</strong><pre>{escape(str(exc))}</pre></div>'
+        '<div class="error" role="alert">'
+        "<strong>Conversion failed</strong>"
+        "<span>Check the source document or the required conversion tools.</span>"
+        f"<pre>{escape(str(exc))}</pre>"
+        "</div>"
     )
 
 

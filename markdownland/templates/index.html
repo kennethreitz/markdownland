@@ -21,7 +21,11 @@
 </head>
 <body>
   <div id="dropzone" hidden>
-    <div class="dropzone-inner">Drop your document</div>
+    <div class="dropzone-inner">
+      <div class="dropzone-icon" aria-hidden="true">⇣</div>
+      <div class="dropzone-title">Drop to import</div>
+      <div class="dropzone-meta" id="dropzone-meta">Markdown, PDF, DOCX, HTML, and more</div>
+    </div>
   </div>
 
   <header class="topbar">
@@ -36,27 +40,42 @@
               title="Style the preview like the exported LaTeX/PDF">LaTeX look</button>
       <button id="inspector-toggle" type="button" class="btn small" aria-pressed="false"
               title="Show or hide the inspector panel">Inspector</button>
-      <div class="tools-status" title="External tools detected on the server">
-        {% if tools.pandoc %}<span class="ok">● pandoc</span>{% else %}<span class="bad">● pandoc missing</span>{% endif %}
-        {% if tools.tectonic %}<span class="ok">● tectonic (PDF)</span>{% else %}<span class="bad">● tectonic missing</span>{% endif %}
-        {% if tools.pdftotext %}<span class="ok">● pdftotext (PDF import)</span>{% else %}<span class="bad">● pdftotext missing</span>{% endif %}
+      <div class="tools-status" aria-label="External conversion tools">
+        <span class="tool-pill {% if tools.pandoc %}ok{% else %}bad{% endif %}"
+              title="{{ tools.pandoc or 'pandoc not found' }}">
+          <span class="tool-dot" aria-hidden="true"></span><span>pandoc</span>
+        </span>
+        <span class="tool-pill {% if tools.tectonic %}ok{% else %}bad{% endif %}"
+              title="{{ tools.tectonic or 'tectonic not found: PDF export disabled' }}">
+          <span class="tool-dot" aria-hidden="true"></span><span>PDF export</span>
+        </span>
+        <span class="tool-pill {% if tools.pdftotext %}ok{% else %}bad{% endif %}"
+              title="{{ tools.pdftotext or 'pdftotext not found: PDF import disabled' }}">
+          <span class="tool-dot" aria-hidden="true"></span><span>PDF import</span>
+        </span>
       </div>
     </div>
   </header>
 
   <main class="layout inspector-closed">
     <section class="pane editor-pane">
-      <div class="tabbar" id="tabbar"></div>
+      <div class="tabbar" id="tabbar" role="tablist" aria-label="Open documents"></div>
       <div class="pane-head">
         <span>Markdown</span>
         <span class="hint" id="filename-label">paste, type, or drop a file</span>
       </div>
       <div class="editor-toolbar">
         <input id="file-picker" type="file" accept="{{ import_accept }}" hidden>
-        <button type="button" class="btn small" data-action="open">Open</button>
-        <button type="button" class="btn small" data-table="insert" title="Insert a table template">⊞ Insert table</button>
-        <button type="button" class="btn small" data-table="format" title="Align table columns (⌘/Ctrl+Shift+T)">⊞ Format table</button>
-        <button type="button" class="btn small" data-action="clear">Clear</button>
+        <button type="button" class="btn small" data-action="open">
+          <span class="btn-icon" aria-hidden="true">↥</span><span>Open</span>
+        </button>
+        <button type="button" class="btn small" data-table="insert" title="Insert a table template">
+          <span class="btn-icon" aria-hidden="true">⊞</span><span>Insert table</span>
+        </button>
+        <button type="button" class="btn small" data-table="format" title="Align table columns (⌘/Ctrl+Shift+T)">
+          <span class="btn-icon" aria-hidden="true">≡</span><span>Format table</span>
+        </button>
+        <button type="button" class="btn small subtle" data-action="clear">Clear</button>
       </div>
       <form id="md-form">
         <div class="editor-wrap">
@@ -88,17 +107,29 @@
   </main>
 
   <footer class="actionbar">
-    <div class="group">
+    <div class="group group-download">
       <span class="group-label">Download</span>
-      <button type="button" class="btn download" data-kind="download" data-key="pdf"
-        {% if not tools.tectonic %}disabled title="tectonic not installed"{% endif %}>PDF</button>
-      <button type="button" class="btn download" data-kind="download" data-key="docx">DOCX</button>
-      <button type="button" class="btn download" data-kind="source-download">Markdown</button>
-      <button type="button" class="btn download" data-kind="text-download" data-key="html_doc">HTML</button>
+      <button type="button" class="btn download primary" data-kind="download" data-key="pdf"
+        {% if not tools.tectonic %}disabled title="tectonic not installed"{% endif %}>
+        <span class="btn-icon" aria-hidden="true">↓</span><span>PDF</span>
+      </button>
+      <button type="button" class="btn download" data-kind="download" data-key="docx">
+        <span class="btn-icon" aria-hidden="true">↓</span><span>DOCX</span>
+      </button>
+      <button type="button" class="btn download" data-kind="source-download">
+        <span class="btn-icon" aria-hidden="true">↓</span><span>Markdown</span>
+      </button>
+      <button type="button" class="btn download" data-kind="text-download" data-key="html_doc">
+        <span class="btn-icon" aria-hidden="true">↓</span><span>HTML</span>
+      </button>
       <div class="menu">
-        <button type="button" class="btn menu-toggle" aria-expanded="false">More ▾</button>
+        <button type="button" class="btn menu-toggle" aria-expanded="false">
+          <span>More</span><span class="chevron" aria-hidden="true">⌃</span>
+        </button>
         <div class="menu-items" hidden>
-          <button type="button" class="btn" data-kind="text-download" data-key="latex">LaTeX source</button>
+          <button type="button" class="btn" data-kind="text-download" data-key="latex">
+            LaTeX source
+          </button>
           {% for f in binary_formats if f.key not in ['pdf', 'docx'] %}
           <button type="button" class="btn" data-kind="download" data-key="{{ f.key }}">{{ f.label }}</button>
           {% endfor %}
@@ -106,14 +137,24 @@
       </div>
     </div>
 
-    <div class="group">
+    <div class="group group-copy">
       <span class="group-label">Copy as</span>
-      <button type="button" class="btn copy" data-kind="copy-rich">Rich text</button>
-      <button type="button" class="btn copy" data-kind="copy" data-key="html">HTML</button>
-      <button type="button" class="btn copy" data-kind="copy" data-key="gfm">Markdown</button>
-      <button type="button" class="btn copy" data-kind="copy" data-key="plain">Plain text</button>
+      <button type="button" class="btn copy primary" data-kind="copy-rich">
+        <span class="btn-icon" aria-hidden="true">⧉</span><span>Rich text</span>
+      </button>
+      <button type="button" class="btn copy" data-kind="copy" data-key="html">
+        <span class="btn-icon" aria-hidden="true">⧉</span><span>HTML</span>
+      </button>
+      <button type="button" class="btn copy" data-kind="copy" data-key="gfm">
+        <span class="btn-icon" aria-hidden="true">⧉</span><span>Markdown</span>
+      </button>
+      <button type="button" class="btn copy" data-kind="copy" data-key="plain">
+        <span class="btn-icon" aria-hidden="true">⧉</span><span>Plain text</span>
+      </button>
       <div class="menu">
-        <button type="button" class="btn menu-toggle" aria-expanded="false">More ▾</button>
+        <button type="button" class="btn menu-toggle" aria-expanded="false">
+          <span>More</span><span class="chevron" aria-hidden="true">⌃</span>
+        </button>
         <div class="menu-items" hidden>
           {% for f in text_formats if f.key not in ['html', 'gfm', 'plain'] %}
           <button type="button" class="btn" data-kind="copy" data-key="{{ f.key }}">{{ f.label }}</button>
@@ -122,7 +163,7 @@
       </div>
     </div>
 
-    <div id="toast" class="toast" hidden></div>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   </footer>
 
   <script>

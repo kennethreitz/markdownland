@@ -17,10 +17,14 @@ def test_index_serves_page():
     assert 'id="source"' in r.text
     assert 'id="inspector"' in r.text
     assert 'id="tabbar"' in r.text
+    assert 'role="tablist"' in r.text
     assert 'href="/docs/"' in r.text
     assert 'href="/formats"' in r.text
+    assert "tool-pill" in r.text
     assert "pdftotext" in r.text
     assert 'accept="' in r.text and ".mkd" in r.text
+    assert 'id="dropzone-meta"' in r.text
+    assert 'aria-live="polite"' in r.text
     assert "/static/tables.js" in r.text
     assert "/static/tabs.js" in r.text
     assert "/static/mermaid.js" in r.text

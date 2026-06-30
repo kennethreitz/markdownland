@@ -76,6 +76,9 @@
       tab.className = "tab" + (t.id === state.activeId ? " active" : "");
       tab.dataset.id = t.id;
       tab.title = `${t.name} — double-click to rename`;
+      tab.role = "tab";
+      tab.tabIndex = t.id === state.activeId ? 0 : -1;
+      tab.setAttribute("aria-selected", t.id === state.activeId ? "true" : "false");
       const name = document.createElement("span");
       name.className = "tab-name";
       name.textContent = t.name;
@@ -85,6 +88,7 @@
       close.dataset.close = t.id;
       close.textContent = "×";
       close.title = "Close";
+      close.setAttribute("aria-label", `Close ${t.name}`);
       tab.append(name, close);
       tabbar.append(tab);
     }
@@ -94,6 +98,7 @@
     add.dataset.add = "1";
     add.textContent = "+";
     add.title = "New document";
+    add.setAttribute("aria-label", "New document");
     tabbar.append(add);
   }
 
@@ -154,6 +159,22 @@
   tabbar.addEventListener("dblclick", (e) => {
     const tab = e.target.closest(".tab");
     if (tab) renameTab(tab.dataset.id);
+  });
+  tabbar.addEventListener("keydown", (e) => {
+    const tab = e.target.closest(".tab");
+    if (!tab) return;
+    const tabs = [...tabbar.querySelectorAll(".tab")];
+    const index = tabs.indexOf(tab);
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      setActive(tab.dataset.id);
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      e.preventDefault();
+      const direction = e.key === "ArrowRight" ? 1 : -1;
+      const next = tabs[(index + direction + tabs.length) % tabs.length];
+      next.focus();
+      setActive(next.dataset.id);
+    }
   });
 
   source.addEventListener("input", schedulePersist);
