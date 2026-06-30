@@ -9,6 +9,7 @@
   if (!source) return;
 
   function commit(value, selStart, selEnd) {
+    if (window.mdReplace) return window.mdReplace(source, value, selStart, selEnd); // undo-safe
     source.value = value;
     source.setSelectionRange(selStart, selEnd);
     source.dispatchEvent(new Event("input", { bubbles: true })); // refresh + persist

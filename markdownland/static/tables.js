@@ -108,6 +108,7 @@
   }
 
   function setValue(next, caret) {
+    if (window.mdReplace) return window.mdReplace(ta, next, caret); // undo-safe
     ta.value = next;
     if (caret != null) ta.setSelectionRange(caret, caret);
     ta.focus();

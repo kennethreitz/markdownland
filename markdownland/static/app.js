@@ -135,8 +135,10 @@
 
   function insertAtCursor(text) {
     const start = source.selectionStart, end = source.selectionEnd;
-    source.value = source.value.slice(0, start) + text + source.value.slice(end);
+    const next = source.value.slice(0, start) + text + source.value.slice(end);
     const caret = start + text.length;
+    if (window.mdReplace) { window.mdReplace(source, next, caret); return; } // undo-safe
+    source.value = next;
     source.setSelectionRange(caret, caret);
     refreshPreview();
   }

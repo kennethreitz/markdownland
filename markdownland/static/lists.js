@@ -28,6 +28,7 @@
   }
 
   function setValue(next, caret) {
+    if (window.mdReplace) return window.mdReplace(source, next, caret); // undo-safe
     source.value = next;
     source.setSelectionRange(caret, caret);
     source.dispatchEvent(new Event("input", { bubbles: true })); // refresh + persist
