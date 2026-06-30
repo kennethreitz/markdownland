@@ -162,6 +162,15 @@
     if (document.visibilityState === "hidden") persist();
   });
 
+  // ⌘/Ctrl+N opens a new blank draft. (Some browsers reserve ⌘N for a new
+  // window and won't deliver it to the page; it works where it's allowed.)
+  window.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "n") {
+      e.preventDefault();
+      newTab();
+    }
+  });
+
   // Public API used by the drag/drop + import code.
   window.mdland = {
     openDoc: (name, content) => newTab(name, content),
