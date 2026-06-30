@@ -66,6 +66,34 @@
     return true;
   }
 
+  // The previous sibling list item at `indentLen` (or null). Used to renumber an
+  // item that's outdented into a differently-numbered parent list.
+  function siblingMarker(v, lineStart, indentLen) {
+    const lines = v.slice(0, lineStart).split("\n");
+    for (let i = lines.length - 2; i >= 0; i--) {
+      const ln = lines[i];
+      if (ln.trim() === "") return null;          // blank line ends the list
+      const ind = ln.length - ln.trimStart().length;
+      if (ind < indentLen) return null;           // reached the parent → first child
+      if (ind > indentLen) continue;              // deeper nested → skip
+      const o = OL.exec(ln);
+      if (o) return { ordered: true, token: nextOrdered(o[2]), delim: o[3] };
+      const u = UL.exec(ln);
+      if (u) return { ordered: false, bullet: u[2] };
+      return null;                                // non-list line at this level
+    }
+    return null;
+  }
+
+  // Rewrite a line's list marker to match a sibling's numbering/bullet.
+  function applyMarker(line, sib) {
+    const m = OL.exec(line) || UL.exec(line);
+    if (!m) return line;
+    const checkbox = m[4] && /\[/.test(m[4]) ? m[4] : ""; // preserve a task checkbox
+    const lead = sib.ordered ? `${sib.token}${sib.delim}` : sib.bullet;
+    return `${m[1]}${lead} ${checkbox}${m[5]}`;
+  }
+
   function handleTab(outdent) {
     const v = source.value;
     const pos = source.selectionStart;
@@ -73,15 +101,18 @@
     const line = v.slice(start, end);
     if (!UL.test(line) && !OL.test(line)) return false; // only on list lines
 
-    if (outdent) {
-      const lead = line.match(/^( {1,2}|\t)/);
-      if (!lead) return true; // already flush left; just swallow the Tab
-      const cut = lead[0].length;
-      setValue(v.slice(0, start) + line.slice(cut) + v.slice(end),
-        Math.max(start, pos - cut));
-    } else {
+    if (!outdent) {
       setValue(v.slice(0, start) + "  " + line + v.slice(end), pos + 2);
+      return true;
     }
+
+    const lead = line.match(/^( {1,2}|\t)/);
+    if (!lead) return true; // already flush left; just swallow the Tab
+    let next = line.slice(lead[0].length);
+    const indentLen = next.length - next.trimStart().length;
+    const sib = siblingMarker(v, start, indentLen);
+    if (sib) next = applyMarker(next, sib); // adopt the parent list's numbering
+    setValue(v.slice(0, start) + next + v.slice(end), start + next.length);
     return true;
   }
 
