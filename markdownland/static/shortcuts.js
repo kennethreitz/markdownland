@@ -63,6 +63,21 @@
     commit(next, Math.max(blockStart, s + firstDelta), e + total);
   }
 
+  // Tab inserts two spaces (or indents the selection); Shift-Tab outdents.
+  // Runs only if tables.js / lists.js didn't already claim the keystroke.
+  source.addEventListener("keydown", (e) => {
+    if (e.key !== "Tab" || e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+    e.preventDefault();
+    if (e.shiftKey) {
+      indent(true);
+    } else if (source.selectionStart !== source.selectionEnd) {
+      indent(false);
+    } else {
+      const v = source.value, p = source.selectionStart;
+      commit(v.slice(0, p) + "  " + v.slice(p), p + 2, p + 2);
+    }
+  });
+
   source.addEventListener("keydown", (e) => {
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
     switch (e.key.toLowerCase()) {

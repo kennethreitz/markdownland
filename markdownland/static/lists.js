@@ -10,8 +10,15 @@
 
   // indent · bullet · spaces · optional task checkbox · content
   const UL = /^(\s*)([-*+])(\s+)(\[[ xX]\]\s+)?(.*)$/;
-  // indent · number · delimiter (. or )) · spaces · content
-  const OL = /^(\s*)(\d+)([.)])(\s+)(.*)$/;
+  // indent · marker (number or a single a–z/A–Z letter) · delimiter · spaces · content
+  const OL = /^(\s*)(\d+|[a-zA-Z])([.)])(\s+)(.*)$/;
+
+  // The marker that follows `token` in an ordered list: 2→3, a→b, A→B.
+  function nextOrdered(token) {
+    if (/^\d+$/.test(token)) return String(parseInt(token, 10) + 1);
+    if (token === "z" || token === "Z") return token; // don't overflow the alphabet
+    return String.fromCharCode(token.charCodeAt(0) + 1);
+  }
 
   function lineBounds(value, pos) {
     const start = value.lastIndexOf("\n", pos - 1) + 1;
@@ -49,7 +56,7 @@
     // Otherwise start the next item (splitting at the cursor).
     let marker;
     if (ordered) {
-      marker = `${indent}${parseInt(m[2], 10) + 1}${m[3]}${m[4]}`;
+      marker = `${indent}${nextOrdered(m[2])}${m[3]}${m[4]}`;
     } else {
       const checkbox = m[4] ? "[ ] " : ""; // new task items start unchecked
       marker = `${indent}${m[2]}${m[3]}${checkbox}`;
