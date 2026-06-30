@@ -102,7 +102,11 @@
     if (!UL.test(line) && !OL.test(line)) return false; // only on list lines
 
     if (!outdent) {
-      setValue(v.slice(0, start) + "  " + line + v.slice(end), pos + 2);
+      let next = "  " + line; // indent one level
+      const indentLen = next.length - next.trimStart().length;
+      const sib = siblingMarker(v, start, indentLen);
+      if (sib) next = applyMarker(next, sib); // adopt the nested list's numbering
+      setValue(v.slice(0, start) + next + v.slice(end), start + next.length);
       return true;
     }
 
