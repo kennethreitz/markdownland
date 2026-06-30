@@ -1,6 +1,6 @@
 """Unit tests for conversion helpers."""
 
-import convert
+from markdownland import convert
 
 
 def test_standalone_html_uses_frontmatter_title():

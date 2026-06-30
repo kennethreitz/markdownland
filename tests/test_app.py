@@ -4,8 +4,8 @@ import shutil
 
 import pytest
 
-import convert
-from app import api
+from markdownland import convert
+from markdownland.app import api
 
 client = api.requests
 

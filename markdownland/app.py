@@ -10,13 +10,14 @@ from __future__ import annotations
 import os
 import re
 from html import escape
+from pathlib import Path
 from urllib.parse import parse_qs
 
 import responder
 
-import analyzer
-import convert
-import validators
+from . import analyzer, convert, validators
+
+_PKG = Path(__file__).resolve().parent
 
 api = responder.API(
     title="markdownland",
@@ -24,6 +25,9 @@ api = responder.API(
     description="Convert markdown to anything, via pandoc.",
     docs_route="/docs/",
     secret_key=os.environ.get("RESPONDER_SECRET_KEY", "markdownland-dev"),
+    # Static files and templates live inside the package, not the CWD.
+    static_dir=str(_PKG / "static"),
+    templates_dir=str(_PKG / "templates"),
     # Markdown is text; 8 MiB is a generous ceiling for a single document.
     max_request_size=8 * 1024 * 1024,
 )

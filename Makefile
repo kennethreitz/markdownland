@@ -13,10 +13,10 @@ uv-sync: ## Install/sync dependencies into the uv environment
 	uv sync
 
 run: uv-sync ## Run the server (Granian)
-	uv run main.py
+	uv run markdownland
 
 dev: uv-sync ## Run the server with autoreload
-	RELOAD=1 uv run main.py
+	RELOAD=1 uv run markdownland
 
 test: uv-sync ## Run the test suite
 	uv run pytest

@@ -1,6 +1,6 @@
 """Unit tests for the markdown validators."""
 
-import validators
+from markdownland import validators
 
 
 def rules(source):

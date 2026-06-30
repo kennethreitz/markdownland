@@ -1,6 +1,6 @@
 """Unit tests for document analysis."""
 
-import analyzer
+from markdownland import analyzer
 
 
 def test_analyze_extracts_title_stats_and_outline():

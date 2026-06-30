@@ -79,16 +79,19 @@ make test       # run the test suite
 make dev        # run with autoreload
 ```
 
+Once deps are synced you can also start it directly with the installed
+entrypoint — `uv run markdownland` (or just `markdownland` inside the venv).
+
 ## Project layout
 
-| File | Purpose |
+| Path | Purpose |
 |------|---------|
-| `app.py` | Responder app + routes |
-| `convert.py` | pandoc / tectonic / poppler conversion engine |
-| `validators.py` | publishing-readiness checks |
-| `analyzer.py` | document stats + outline extraction |
-| `main.py` | Granian entry point |
-| `templates/`, `static/` | HTMX + vanilla-JS UI |
+| `markdownland/app.py` | Responder app + routes |
+| `markdownland/convert.py` | pandoc / tectonic / poppler conversion engine |
+| `markdownland/validators.py` | publishing-readiness checks |
+| `markdownland/analyzer.py` | document stats + outline extraction |
+| `markdownland/__main__.py` | Granian entry point (`markdownland` command) |
+| `markdownland/templates/`, `markdownland/static/` | HTMX + vanilla-JS UI |
 | `tests/` | pytest suite |
 
 ## License

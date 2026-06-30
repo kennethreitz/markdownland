@@ -1,4 +1,4 @@
-"""Entry point: `uv run main.py` starts markdownland on Granian (ASGI)."""
+"""Entry point: `python -m markdownland` starts the server on Granian (ASGI)."""
 
 import os
 
@@ -8,7 +8,7 @@ from granian.constants import Interfaces
 
 def main() -> None:
     Granian(
-        "app:api",
+        "markdownland.app:api",
         address=os.environ.get("HOST", "0.0.0.0"),
         port=int(os.environ.get("PORT", "8000")),
         interface=Interfaces.ASGI,

@@ -29,4 +29,4 @@ RUN uv sync --frozen --no-dev
 ENV HOST=0.0.0.0 PORT=8000 RESPONDER_SECRET_KEY=change-me
 EXPOSE 8000
 
-CMD ["uv", "run", "main.py"]
+CMD ["uv", "run", "markdownland"]
