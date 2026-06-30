@@ -63,7 +63,7 @@ body {
 .layout.inspector-closed .preview-pane { border-right: 0; }
 
 .topbar-right { display: flex; align-items: center; gap: 1rem; }
-#inspector-toggle.active { border-color: var(--accent); color: var(--accent); }
+#inspector-toggle.active, #latex-toggle.active { border-color: var(--accent); color: var(--accent); }
 .pane-head {
   display: flex; justify-content: space-between; align-items: center;
   padding: .4rem .85rem; font-size: .78rem; font-weight: 600;
@@ -299,6 +299,43 @@ body {
 .markdown-body code span.er { color: var(--bad); font-weight: 600; }
 /* Hide pandoc's per-line anchor links so blocks read clean. */
 .markdown-body pre.sourceCode a[aria-hidden="true"] { display: none; }
+
+/* ---- "LaTeX look" preview theme ----
+   Latin Modern (pandoc's default LaTeX font) + article typography, so the HTML
+   preview matches the look of the exported PDF. Toggled via #latex-toggle. */
+@font-face {
+  font-family: "Latin Modern Roman"; font-weight: 400; font-style: normal; font-display: swap;
+  src: url("https://cdn.jsdelivr.net/npm/latex.css@1.11.0/fonts/LM-regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Latin Modern Roman"; font-weight: 700; font-style: normal; font-display: swap;
+  src: url("https://cdn.jsdelivr.net/npm/latex.css@1.11.0/fonts/LM-bold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Latin Modern Roman"; font-weight: 400; font-style: italic; font-display: swap;
+  src: url("https://cdn.jsdelivr.net/npm/latex.css@1.11.0/fonts/LM-italic.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Latin Modern Roman"; font-weight: 700; font-style: italic; font-display: swap;
+  src: url("https://cdn.jsdelivr.net/npm/latex.css@1.11.0/fonts/LM-bold-italic.woff2") format("woff2");
+}
+
+#preview.latex {
+  font-family: "Latin Modern Roman", Georgia, "Times New Roman", serif;
+  font-size: 1.08rem; line-height: 1.45;
+  text-align: justify; hyphens: auto;
+  max-width: 42rem; margin: 0 auto; padding: 1.5rem 1.6rem 3rem;
+}
+#preview.latex h1, #preview.latex h2, #preview.latex h3,
+#preview.latex h4 { font-weight: 700; border-bottom: none; line-height: 1.2; }
+#preview.latex h1 { text-align: center; font-size: 1.9rem; margin: .5rem 0 1.4rem; }
+#preview.latex h2 { font-size: 1.4rem; }
+#preview.latex blockquote { font-style: italic; }
+#preview.latex a { color: inherit; text-decoration: underline; }
+/* Keep code monospaced — LaTeX uses a typewriter face for verbatim. */
+#preview.latex code, #preview.latex pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-align: left; hyphens: none;
+}
 
 @media (max-width: 1100px) {
   .layout { grid-template-columns: 1fr 1fr; grid-template-rows: minmax(0, 1fr) 18rem; }

@@ -25,6 +25,8 @@
     <div class="topbar-right">
       <a class="btn small" href="/docs/" target="_blank" rel="noreferrer">API Docs</a>
       <a class="btn small" href="/formats" target="_blank" rel="noreferrer">Formats</a>
+      <button id="latex-toggle" type="button" class="btn small" aria-pressed="false"
+              title="Style the preview like the exported LaTeX/PDF">LaTeX look</button>
       <button id="inspector-toggle" type="button" class="btn small" aria-pressed="false"
               title="Show or hide the inspector panel">Inspector</button>
       <div class="tools-status" title="External tools detected on the server">
@@ -116,6 +118,25 @@
         const open = layout.classList.contains("inspector-closed");
         try { localStorage.setItem(KEY, open ? "open" : "closed"); } catch {}
         apply(open);
+      });
+    })();
+
+    // LaTeX look: style the preview like the exported PDF. On by default.
+    (() => {
+      const KEY = "markdownland:latex";
+      const preview = document.getElementById("preview");
+      const btn = document.getElementById("latex-toggle");
+      if (!preview || !btn) return;
+      const apply = (on) => {
+        preview.classList.toggle("latex", on);   // survives HTMX innerHTML swaps
+        btn.classList.toggle("active", on);
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
+      };
+      apply(localStorage.getItem(KEY) !== "off"); // default: on
+      btn.addEventListener("click", () => {
+        const on = !preview.classList.contains("latex");
+        try { localStorage.setItem(KEY, on ? "on" : "off"); } catch {}
+        apply(on);
       });
     })();
   </script>
