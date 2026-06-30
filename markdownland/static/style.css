@@ -173,6 +173,11 @@ body {
 }
 #source::placeholder { color: var(--muted); }
 #source::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+#source.line-jump { animation: line-jump-flash .9s ease-out; }
+@keyframes line-jump-flash {
+  0%, 35% { box-shadow: inset 4px 0 0 var(--accent); }
+  100% { box-shadow: inset 4px 0 0 transparent; }
+}
 
 .preview-pane #preview { flex: 1; overflow: auto; padding: 1.25rem 1.6rem; }
 
@@ -279,12 +284,18 @@ body {
 .lint-chip.warning { background: color-mix(in srgb, var(--warn) 22%, transparent); color: color-mix(in srgb, var(--warn) 82%, var(--ink)); }
 .lint-chip.info { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
 .lint-list { list-style: none; margin: 0; padding: .25rem 0; }
-.lint-item {
+.lint-item { margin: 0; }
+.lint-jump {
   display: grid; grid-template-columns: 2.6rem .6rem 1fr; gap: .5rem;
-  align-items: baseline; padding: .45rem .85rem; font-size: .8rem;
+  align-items: baseline; width: 100%; padding: .45rem .85rem; border: 0;
+  background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer;
 }
 .lint-item + .lint-item { border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
-.lint-item:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.lint-jump:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.lint-jump:focus-visible {
+  outline: none; background: color-mix(in srgb, var(--accent) 8%, transparent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
 .lint-line { color: var(--muted); font-family: ui-monospace, Menlo, monospace; font-size: .72rem; }
 .lint-dot { width: .55rem; height: .55rem; border-radius: 50%; align-self: center; }
 .lint-dot.error { background: var(--bad); }

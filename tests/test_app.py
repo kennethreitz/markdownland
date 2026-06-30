@@ -70,6 +70,9 @@ def test_preview_renders_html_and_lint():
     assert "<h1" in r.text  # rendered markdown
     assert 'id="lint"' in r.text  # OOB validation panel
     assert 'id="inspector"' in r.text  # OOB document inspector
+    assert 'class="lint-jump"' in r.text
+    assert 'data-line="3"' in r.text
+    assert "Go to line 3" in r.text
     assert "Words" in r.text
     assert "hx-swap-oob" in r.text
     assert "relative" in r.text.lower()  # the finding

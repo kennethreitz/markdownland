@@ -89,6 +89,35 @@
     btn.toggleAttribute("aria-busy", busy);
   }
 
+  function lineBounds(text, lineNumber) {
+    const line = Math.max(1, Number(lineNumber) || 1);
+    let start = 0;
+    for (let i = 1; i < line; i++) {
+      const next = text.indexOf("\n", start);
+      if (next === -1) return [text.length, text.length];
+      start = next + 1;
+    }
+    const end = text.indexOf("\n", start);
+    return [start, end === -1 ? text.length : end];
+  }
+
+  function scrollEditorToLine(lineNumber) {
+    const line = Math.max(1, Number(lineNumber) || 1);
+    const [start, end] = lineBounds(source.value, line);
+    const style = window.getComputedStyle(source);
+    const lineHeight = Number.parseFloat(style.lineHeight) || 22;
+    const targetTop = Math.max(0, (line - 1) * lineHeight - source.clientHeight * 0.35);
+    source.focus({ preventScroll: true });
+    source.setSelectionRange(start, end);
+    source.scrollTop = targetTop;
+    source.dispatchEvent(new Event("scroll"));
+    source.classList.remove("line-jump");
+    void source.offsetWidth; // restart the flash animation for repeated clicks
+    source.classList.add("line-jump");
+    clearTimeout(scrollEditorToLine._timer);
+    scrollEditorToLine._timer = setTimeout(() => source.classList.remove("line-jump"), 900);
+  }
+
   // ---- file loading ---------------------------------------------------------
 
   function looksLikeMarkdown(file) {
@@ -210,6 +239,12 @@
     dropzone.hidden = true;
     if (dropzoneMeta) dropzoneMeta.textContent = "Markdown, PDF, DOCX, HTML, and more";
     if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+  });
+
+  document.addEventListener("click", (e) => {
+    const jump = e.target.closest(".lint-jump[data-line]");
+    if (!jump) return;
+    scrollEditorToLine(jump.dataset.line);
   });
 
   // ---- action buttons -------------------------------------------------------

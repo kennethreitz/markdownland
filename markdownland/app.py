@@ -460,11 +460,15 @@ def _lint_fragment(report: validators.Report) -> str:
         rows = []
         for f in report.findings:
             snippet = f'<code class="lint-snippet">{escape(f.snippet)}</code>' if f.snippet else ""
+            label = escape(f"Go to line {f.line}: {f.message}")
             rows.append(
                 f'<li class="lint-item {f.severity}">'
+                f'<button type="button" class="lint-jump" data-line="{f.line}" '
+                f'aria-label="{label}">'
                 f'<span class="lint-line">L{f.line}</span>'
                 f'<span class="lint-dot {f.severity}" title="{f.severity}"></span>'
                 f'<span class="lint-msg">{escape(f.message)}{snippet}</span>'
+                "</button>"
                 f"</li>"
             )
         items = f'<ul class="lint-list">{"".join(rows)}</ul>'
