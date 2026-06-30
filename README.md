@@ -41,10 +41,13 @@ Built on [Responder](https://responder.kennethreitz.org/) · served by
 
 ### The easy way — Docker
 
-Every dependency is baked into the image; nothing touches your system:
+Every dependency — pandoc, tectonic, poppler, and mermaid-cli (with a system
+Chromium) — is baked into the image; nothing touches your system:
 
 ```sh
-make docker-run     # build + serve on http://localhost:8000
+make up             # docker compose up --build, serves on http://localhost:8000
+# or, without compose:
+make docker-run     # docker build + run
 ```
 
 ### Native (macOS)

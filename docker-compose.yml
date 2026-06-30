@@ -1,0 +1,18 @@
+# markdownland — run with `docker compose up` (builds the image on first run).
+services:
+  markdownland:
+    build: .
+    image: markdownland
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      # Set a real secret in a .env file or your shell for production.
+      RESPONDER_SECRET_KEY: "${RESPONDER_SECRET_KEY:-change-me}"
+      WEB_CONCURRENCY: "${WEB_CONCURRENCY:-1}"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

@@ -33,5 +33,11 @@ docker-build: ## Build the Docker image
 docker-run: docker-build ## Build and run the Docker image on :8000
 	docker run --rm -p 8000:8000 markdownland
 
+up: ## Start via docker compose (builds on first run) on :8000
+	docker compose up --build
+
+down: ## Stop and remove the docker compose stack
+	docker compose down
+
 clean: ## Remove caches and build artifacts
 	rm -rf .pytest_cache .ruff_cache __pycache__ */__pycache__
