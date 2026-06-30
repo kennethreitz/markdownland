@@ -52,6 +52,10 @@ _ABSOLUTE = re.compile(r"^(?:[a-z][a-z0-9+.-]*:|//|#|data:|mailto:|tel:)", re.I)
 # was an image (leading !), the bracket text, and the parenthesised target.
 _LINK = re.compile(r"(!?)\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+[\"'][^\"']*[\"'])?\s*\)")
 
+# Obsidian-style wikilinks: [[Page]], [[Page|Alias]], and embeds ![[file]].
+# These render as literal text in standard markdown / PDF / HTML.
+_WIKILINK = re.compile(r"(!?)\[\[\s*([^\[\]]+?)\s*\]\]")
+
 _HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 _HEADING_ID = re.compile(r"\s*\{[^}]*#([A-Za-z0-9_.:-]+)[^}]*\}\s*$")
 _FENCE = re.compile(r"^\s*(```+|~~~+)")
@@ -168,6 +172,18 @@ def validate(source: str) -> Report:
                     findings.append(Finding(
                         i, "warning", "empty-link-text",
                         "Link has no visible text.", snippet))
+
+        # --- wikilinks (Obsidian-style) --------------------------------------
+        for m in _WIKILINK.finditer(line):
+            inner = m.group(2).strip()
+            if m.group(1) == "!":
+                msg = (f"Wikilink embed “![[{inner}]]” is Obsidian-only — it "
+                       "won't embed in published output. Use ![alt](url).")
+            else:
+                msg = (f"Wikilink “[[{inner}]]” is Obsidian/wiki syntax — it "
+                       "renders as literal text outside a wiki. Use a "
+                       "[label](url) link.")
+            findings.append(Finding(i, "warning", "wikilink", msg, m.group(0)))
 
         # --- headings ---------------------------------------------------------
         hm = _HEADING.match(line)

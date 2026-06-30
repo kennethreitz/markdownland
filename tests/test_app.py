@@ -4,6 +4,7 @@ import shutil
 
 import pytest
 
+import convert
 from app import api
 
 client = api.requests
@@ -14,8 +15,13 @@ def test_index_serves_page():
     assert r.status_code == 200
     assert "markdownland" in r.text
     assert 'id="source"' in r.text
+    assert 'id="inspector"' in r.text
+    assert 'id="tabbar"' in r.text
     assert "/static/tables.js" in r.text
+    assert "/static/tabs.js" in r.text
+    assert "/static/mermaid.js" in r.text
     assert 'data-table="format"' in r.text
+    assert 'data-kind="source-download"' in r.text
 
 
 def test_health_reports_tools():
@@ -31,6 +37,8 @@ def test_preview_renders_html_and_lint():
     assert r.status_code == 200
     assert "<h1" in r.text                       # rendered markdown
     assert 'id="lint"' in r.text                 # OOB validation panel
+    assert 'id="inspector"' in r.text            # OOB document inspector
+    assert "Words" in r.text
     assert "hx-swap-oob" in r.text
     assert "relative" in r.text.lower()          # the finding
 
@@ -65,8 +73,38 @@ def test_standalone_html_download_inlines_stylesheet():
     r = client.post("/text/html_doc", data={"source": "# Hi", "download": "1"})
     assert r.status_code == 200
     assert "<!DOCTYPE html>" in r.text
+    assert "<title>Hi</title>" in r.text
     assert "max-width: 46rem" in r.text
     assert 'href=":root' not in r.text
+
+
+def test_import_html_endpoint_converts_b_tag():
+    r = client.post("/import/html", data={"html": "<h1>Imported</h1><p>Hello <b>there</b>.</p>"})
+    assert r.status_code == 200
+    body = r.json()
+    assert "# Imported" in body["markdown"]
+    assert "**there**" in body["markdown"]
+
+
+def test_import_file_html_endpoint():
+    r = client.post(
+        "/import/file",
+        files={"file": ("note.html", b"<h1>Imported</h1><p>Hello.</p>", "text/html")},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["filename"] == "note.html"
+    assert "# Imported" in body["markdown"]
+
+
+def test_analyze_endpoint_json():
+    r = client.post("/analyze", data={"source": "# Title\n\nSee [site](https://example.com)."})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["title"] == "Title"
+    assert body["stats"]["headings"] == 1
+    assert body["stats"]["links"] == 1
+    assert body["score"]["label"] == "Ready"
 
 
 def test_space_heavy_body_does_not_break_decoding():
@@ -99,6 +137,50 @@ def test_docx_download():
     assert r.status_code == 200
     assert r.headers["content-disposition"].endswith('.docx"')
     assert r.content[:2] == b"PK"                # docx is a zip
+
+
+def test_import_html_endpoint():
+    html = "<h1>Hi</h1><p>Hello <strong>bold</strong> and <em>italic</em>.</p>"
+    r = client.post("/import/html", data={"html": html})
+    assert r.status_code == 200
+    md = r.json()["markdown"]
+    assert "# Hi" in md
+    assert "**bold**" in md and "*italic*" in md
+
+
+def test_import_html_empty():
+    r = client.post("/import/html", data={"html": "   "})
+    assert r.status_code == 200
+    assert r.json()["markdown"] == ""
+
+
+def test_import_file_docx_round_trip():
+    docx = convert.to_binary("# Imported\n\nHello **world**.", "docx")
+    r = client.post(
+        "/import/file",
+        files={"file": ("report.docx", docx,
+                        "application/vnd.openxmlformats-officedocument."
+                        "wordprocessingml.document")},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["filename"] == "report.docx"
+    assert "Imported" in body["markdown"]
+    assert "**world**" in body["markdown"]
+
+
+def test_import_file_html():
+    r = client.post(
+        "/import/file",
+        files={"file": ("page.html", b"<h2>Title</h2><p>Body text.</p>", "text/html")},
+    )
+    assert r.status_code == 200
+    assert "## Title" in r.json()["markdown"]
+
+
+def test_import_file_missing():
+    r = client.post("/import/file", data={"nope": "1"})
+    assert r.status_code == 400
 
 
 @pytest.mark.skipif(shutil.which("tectonic") is None, reason="tectonic not installed")

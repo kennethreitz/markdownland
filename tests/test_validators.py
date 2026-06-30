@@ -40,6 +40,27 @@ def test_empty_anchor_is_info():
     assert finding.severity == "info"
 
 
+def test_wikilink_flagged():
+    assert "wikilink" in rules("See [[Some Page]] for details.")
+
+
+def test_wikilink_with_alias_flagged():
+    assert "wikilink" in rules("See [[Some Page|the page]].")
+
+
+def test_wikilink_embed_flagged():
+    found = findings("![[diagram.png]]", "wikilink")
+    assert found and "embed" in found[0].message
+
+
+def test_standard_link_is_not_a_wikilink():
+    assert "wikilink" not in rules("See [the page](https://example.com).")
+
+
+def test_wikilink_inside_code_fence_ignored():
+    assert "wikilink" not in rules("```\n[[Some Page]]\n```")
+
+
 def test_local_image_is_error():
     report = validators.validate("![cat](images/cat.png)")
     assert "local-image" in {f.rule for f in report.findings}

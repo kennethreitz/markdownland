@@ -11,11 +11,18 @@
   --bad: #cf222e;
   --code-bg: #f6f8fa;
   --radius: 10px;
+  /* iA Writer-inspired duotone syntax: mostly ink, grey comments, one cool
+     accent for keywords and one warm accent for values. Low saturation. */
+  --syn-comment: #9aa1a9;
+  --syn-key: #3f6e8c;
+  --syn-val: #8a6d3b;
+  --syn-fn: #2f6f6a;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #0d1117; --panel: #161b22; --ink: #e6edf3; --muted: #8b949e;
     --line: #30363d; --accent: #2f81f7; --code-bg: #161b22;
+    --syn-comment: #6e7681; --syn-key: #8fb3cc; --syn-val: #d6b884; --syn-fn: #7ec9c0;
   }
 }
 
@@ -40,9 +47,23 @@ body {
 .tools-status .bad { color: var(--bad); }
 
 /* ---- main split ---- */
-.layout { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+.layout {
+  flex: 1; display: grid;
+  grid-template-columns: minmax(18rem, .95fr) minmax(24rem, 1.25fr) minmax(17rem, .65fr);
+  min-height: 0;
+}
 .pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
-.editor-pane { border-right: 1px solid var(--line); }
+.editor-pane, .preview-pane { border-right: 1px solid var(--line); }
+
+/* Inspector collapsed (default): drop the third column and its divider. */
+.layout.inspector-closed {
+  grid-template-columns: minmax(18rem, .95fr) minmax(24rem, 1.6fr);
+}
+.layout.inspector-closed .inspector-pane { display: none; }
+.layout.inspector-closed .preview-pane { border-right: 0; }
+
+.topbar-right { display: flex; align-items: center; gap: 1rem; }
+#inspector-toggle.active { border-color: var(--accent); color: var(--accent); }
 .pane-head {
   display: flex; justify-content: space-between; align-items: center;
   padding: .4rem .85rem; font-size: .78rem; font-weight: 600;
@@ -56,6 +77,36 @@ body {
   padding: .35rem .85rem; border-bottom: 1px solid var(--line); background: var(--panel);
 }
 .btn.small { font-size: .76rem; padding: .2rem .5rem; }
+
+/* ---- document tabs ---- */
+.tabbar {
+  display: flex; align-items: stretch; gap: 2px; overflow-x: auto;
+  background: var(--bg); border-bottom: 1px solid var(--line);
+  padding: .25rem .35rem 0; min-height: 2rem;
+}
+.tabbar::-webkit-scrollbar { height: 0; }
+.tab {
+  display: flex; align-items: center; gap: .3rem; max-width: 15rem;
+  padding: .25rem .4rem .25rem .6rem; font-size: .78rem; color: var(--muted);
+  cursor: pointer; white-space: nowrap; align-self: flex-end;
+  border: 1px solid transparent; border-bottom: none; border-radius: 7px 7px 0 0;
+}
+.tab:hover { background: var(--panel); }
+.tab.active { background: var(--panel); color: var(--ink); border-color: var(--line); }
+.tab-name { overflow: hidden; text-overflow: ellipsis; }
+.tab-close {
+  border: 0; background: none; color: inherit; cursor: pointer; line-height: 1;
+  font-size: 1rem; padding: 0 .15rem; border-radius: 4px; opacity: .5;
+}
+.tab-close:hover { opacity: 1; background: var(--line); }
+.tab-add {
+  border: 0; background: none; color: var(--muted); cursor: pointer;
+  font-size: 1.1rem; line-height: 1; padding: 0 .55rem; align-self: center;
+}
+.tab-add:hover { color: var(--accent); }
+
+/* mermaid diagrams in the preview */
+.markdown-body .mermaid { text-align: center; margin: 1.2rem 0; }
 
 #md-form { flex: 1; display: flex; min-height: 0; }
 #source {
@@ -114,6 +165,7 @@ body {
   border-top: 1px solid var(--line); background: var(--panel);
   max-height: 30vh; overflow: auto; flex-shrink: 0;
 }
+.inspector-pane .lint { flex: 1; max-height: none; min-height: 0; }
 .lint:empty { display: none; }
 .lint-summary {
   display: flex; gap: .4rem; align-items: center; flex-wrap: wrap;
@@ -150,6 +202,56 @@ body {
   border-radius: 8px; font-size: .8rem; margin-top: .5rem;
 }
 .empty { color: var(--muted); font-style: italic; }
+.empty.tight { margin: .3rem 0 0; font-size: .82rem; }
+
+/* ---- inspector ---- */
+.inspector {
+  padding: .75rem .85rem; border-bottom: 1px solid var(--line);
+  background: var(--panel); overflow: auto; flex-shrink: 0; max-height: 48%;
+}
+.inspector:empty { display: none; }
+.score-row { display: grid; grid-template-columns: 4.5rem 1fr; gap: .7rem; align-items: center; }
+.score {
+  display: grid; place-items: center; aspect-ratio: 1; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--bg);
+}
+.score strong { font-size: 1.35rem; line-height: 1; }
+.score span { font-size: .66rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.score.good { border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+.score.review { border-color: color-mix(in srgb, #bf8700 55%, var(--line)); }
+.score.bad { border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
+.doc-title {
+  font-weight: 650; line-height: 1.25; overflow-wrap: anywhere;
+}
+.stats-grid {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .45rem; margin-top: .75rem;
+}
+.stat {
+  display: flex; justify-content: space-between; gap: .6rem;
+  padding: .35rem .45rem; border: 1px solid var(--line); border-radius: 7px;
+  background: var(--bg); font-size: .78rem; min-width: 0;
+}
+.stat span { color: var(--muted); }
+.stat strong { font-weight: 650; overflow-wrap: anywhere; }
+.outline-head {
+  margin-top: .8rem; padding-top: .65rem; border-top: 1px solid var(--line);
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .05em;
+  font-weight: 650; color: var(--muted);
+}
+.outline-list { list-style: none; margin: .35rem 0 0; padding: 0; }
+.outline-item {
+  display: grid; grid-template-columns: 2rem 1fr 2.4rem; gap: .35rem;
+  align-items: baseline; padding: .18rem 0; font-size: .8rem;
+}
+.outline-level, .outline-line {
+  color: var(--muted); font-family: ui-monospace, Menlo, monospace; font-size: .7rem;
+}
+.outline-line { text-align: right; }
+.outline-title { overflow-wrap: anywhere; }
+.outline-title.level-2 { padding-left: .45rem; }
+.outline-title.level-3 { padding-left: .9rem; }
+.outline-title.level-4, .outline-title.level-5, .outline-title.level-6 { padding-left: 1.35rem; }
 
 /* ---- rendered markdown ---- */
 .markdown-body { color: var(--ink); }
@@ -171,8 +273,50 @@ body {
 .markdown-body img { max-width: 100%; }
 .markdown-body a { color: var(--accent); }
 
+/* iA Writer-inspired duotone code highlighting (pandoc/skylighting classes).
+   Restrained: base text stays ink; emphasis comes from weight, not loud color. */
+.markdown-body .sourceCode { background: none; }
+.markdown-body pre.sourceCode { line-height: 1.5; }
+.markdown-body code span.co,            /* comments */
+.markdown-body code span.do { color: var(--syn-comment); font-style: italic; }
+.markdown-body code span.kw,            /* keywords / control flow / imports */
+.markdown-body code span.cf,
+.markdown-body code span.im { color: var(--syn-key); font-weight: 600; }
+.markdown-body code span.st,            /* strings & chars */
+.markdown-body code span.ch,
+.markdown-body code span.vs,
+.markdown-body code span.sc,
+.markdown-body code span.dv,            /* numbers & constants */
+.markdown-body code span.bn,
+.markdown-body code span.fl,
+.markdown-body code span.cn { color: var(--syn-val); }
+.markdown-body code span.fu,            /* functions, types, builtins */
+.markdown-body code span.dt,
+.markdown-body code span.bu { color: var(--syn-fn); }
+.markdown-body code span.op,            /* operators, attributes — kept quiet */
+.markdown-body code span.at { color: var(--muted); }
+.markdown-body code span.er { color: var(--bad); font-weight: 600; }
+/* Hide pandoc's per-line anchor links so blocks read clean. */
+.markdown-body pre.sourceCode a[aria-hidden="true"] { display: none; }
+
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: 1fr 1fr; grid-template-rows: minmax(0, 1fr) 18rem; }
+  .preview-pane { border-right: 0; }
+  .inspector-pane {
+    grid-column: 1 / -1; border-top: 1px solid var(--line);
+    display: grid; grid-template-columns: minmax(18rem, .8fr) minmax(20rem, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .inspector-pane .pane-head { grid-column: 1 / -1; }
+  .inspector { max-height: none; border-bottom: 0; border-right: 1px solid var(--line); }
+  .inspector-pane .lint { border-top: 0; }
+}
+
 @media (max-width: 760px) {
-  .layout { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
-  .editor-pane { border-right: 0; border-bottom: 1px solid var(--line); }
+  .layout { grid-template-columns: 1fr; grid-template-rows: minmax(22rem, 1fr) minmax(22rem, 1fr) auto; }
+  .editor-pane, .preview-pane { border-right: 0; border-bottom: 1px solid var(--line); }
+  .inspector-pane { display: flex; grid-column: auto; border-top: 0; }
+  .inspector { max-height: none; border-right: 0; border-bottom: 1px solid var(--line); }
+  .inspector-pane .lint { border-top: 0; max-height: 16rem; }
   .tagline, .tools-status { display: none; }
 }

@@ -7,12 +7,14 @@
   <meta name="description" content="Drag in a markdown file and convert it to PDF, HTML, DOCX, LaTeX and more, via pandoc.">
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/tabs.js" defer></script>
   <script src="/static/tables.js" defer></script>
   <script src="/static/app.js" defer></script>
+  <script src="/static/mermaid.js" type="module"></script>
 </head>
 <body>
   <div id="dropzone" hidden>
-    <div class="dropzone-inner">Drop your <code>.md</code> file</div>
+    <div class="dropzone-inner">Drop your document</div>
   </div>
 
   <header class="topbar">
@@ -20,28 +22,35 @@
       <span class="logo">▦</span> markdownland
       <span class="tagline">drag in markdown · get anything out</span>
     </div>
-    <div class="tools-status" title="External tools detected on the server">
-      {% if tools.pandoc %}<span class="ok">● pandoc</span>{% else %}<span class="bad">● pandoc missing</span>{% endif %}
-      {% if tools.tectonic %}<span class="ok">● tectonic (PDF)</span>{% else %}<span class="bad">● tectonic missing</span>{% endif %}
+    <div class="topbar-right">
+      <button id="inspector-toggle" type="button" class="btn small" aria-pressed="false"
+              title="Show or hide the inspector panel">Inspector</button>
+      <div class="tools-status" title="External tools detected on the server">
+        {% if tools.pandoc %}<span class="ok">● pandoc</span>{% else %}<span class="bad">● pandoc missing</span>{% endif %}
+        {% if tools.tectonic %}<span class="ok">● tectonic (PDF)</span>{% else %}<span class="bad">● tectonic missing</span>{% endif %}
+      </div>
     </div>
   </header>
 
-  <main class="layout">
+  <main class="layout inspector-closed">
     <section class="pane editor-pane">
+      <div class="tabbar" id="tabbar"></div>
       <div class="pane-head">
         <span>Markdown</span>
         <span class="hint" id="filename-label">paste, type, or drop a file</span>
       </div>
       <div class="editor-toolbar">
+        <input id="file-picker" type="file" hidden>
+        <button type="button" class="btn small" data-action="open">Open</button>
         <button type="button" class="btn small" data-table="insert" title="Insert a table template">⊞ Insert table</button>
         <button type="button" class="btn small" data-table="format" title="Align table columns (⌘/Ctrl+Shift+T)">⊞ Format table</button>
+        <button type="button" class="btn small" data-action="clear">Clear</button>
       </div>
       <form id="md-form">
         <textarea id="source" name="source" spellcheck="false"
           hx-post="/preview" hx-target="#preview" hx-trigger="load, input changed delay:400ms"
           hx-include="this" placeholder="# Start typing your markdown…">{{ sample }}</textarea>
       </form>
-      <div id="lint" class="lint"></div>
     </section>
 
     <section class="pane preview-pane">
@@ -50,6 +59,15 @@
         <span class="hint">live HTML</span>
       </div>
       <article id="preview" class="markdown-body"><p class="empty">Loading…</p></article>
+    </section>
+
+    <section class="pane inspector-pane">
+      <div class="pane-head">
+        <span>Inspector</span>
+        <span class="hint">publish readiness</span>
+      </div>
+      <div id="inspector" class="inspector"></div>
+      <div id="lint" class="lint"></div>
     </section>
   </main>
 
@@ -62,6 +80,7 @@
         {{ f.label }}
       </button>
       {% endfor %}
+      <button type="button" class="btn download" data-kind="source-download">Markdown</button>
       <button type="button" class="btn download" data-kind="text-download" data-key="html_doc">HTML</button>
       <button type="button" class="btn download" data-kind="text-download" data-key="latex">LaTeX</button>
     </div>
@@ -76,5 +95,26 @@
 
     <div id="toast" class="toast" hidden></div>
   </footer>
+
+  <script>
+    // Inspector panel: closed by default, toggled from the top bar, remembered.
+    (() => {
+      const KEY = "markdownland:inspector";
+      const layout = document.querySelector(".layout");
+      const btn = document.getElementById("inspector-toggle");
+      if (!layout || !btn) return;
+      const apply = (open) => {
+        layout.classList.toggle("inspector-closed", !open);
+        btn.classList.toggle("active", open);
+        btn.setAttribute("aria-pressed", open ? "true" : "false");
+      };
+      apply(localStorage.getItem(KEY) === "open"); // default: closed
+      btn.addEventListener("click", () => {
+        const open = layout.classList.contains("inspector-closed");
+        try { localStorage.setItem(KEY, open ? "open" : "closed"); } catch {}
+        apply(open);
+      });
+    })();
+  </script>
 </body>
 </html>

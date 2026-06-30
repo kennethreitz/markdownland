@@ -14,6 +14,7 @@ from urllib.parse import parse_qs
 
 import responder
 
+import analyzer
 import convert
 import validators
 
@@ -21,6 +22,7 @@ api = responder.API(
     title="markdownland",
     version="0.1.0",
     description="Convert markdown to anything, via pandoc.",
+    docs_route="/docs/",
     secret_key=os.environ.get("RESPONDER_SECRET_KEY", "markdownland-dev"),
     # Markdown is text; 8 MiB is a generous ceiling for a single document.
     max_request_size=8 * 1024 * 1024,
@@ -112,6 +114,26 @@ async def import_html(req, resp):
         resp.media = {"error": str(exc)}
 
 
+@api.route("/import/file")
+async def import_file(req, resp):
+    """Import a dropped non-markdown file (docx, html, rtf, …) as markdown."""
+    files = await req.media("files")
+    upload = next(iter(files.values()), None) if files else None
+    if upload is None:
+        resp.status_code = 400
+        resp.media = {"error": "No file uploaded."}
+        return
+    raw = await upload.read()
+    name = getattr(upload, "filename", "") or "document"
+    try:
+        markdown = convert.from_file(raw, name)
+    except convert.ConversionError as exc:
+        resp.status_code = api.status_codes.HTTP_422
+        resp.media = {"error": str(exc)}
+        return
+    resp.media = {"markdown": markdown, "filename": name}
+
+
 @api.route("/preview")
 async def preview(req, resp):
     """Live HTML preview + validation, returned as HTMX fragments.
@@ -122,6 +144,7 @@ async def preview(req, resp):
     data = await _read_form(req)
     source = _form_source(data)
     report = validators.validate(source)
+    analysis = analyzer.analyze(source)
 
     if not source.strip():
         body = '<p class="empty">Nothing to preview yet.</p>'
@@ -132,7 +155,7 @@ async def preview(req, resp):
             resp.status_code = api.status_codes.HTTP_422
             body = _error_fragment(exc)
 
-    resp.html = body + _lint_fragment(report)
+    resp.html = body + _inspector_fragment(analysis, report) + _lint_fragment(report)
 
 
 @api.route("/text/{key}")
@@ -205,6 +228,15 @@ async def validate(req, resp):
     }
 
 
+@api.route("/analyze")
+async def analyze(req, resp):
+    """Document intelligence as JSON: stats, outline, and publish score."""
+    data = await _read_form(req)
+    source = _form_source(data)
+    report = validators.validate(source)
+    resp.media = _analysis_payload(analyzer.analyze(source), report)
+
+
 @api.route("/health")
 async def health(req, resp):
     resp.media = {"status": "ok", "tools": convert.health()}
@@ -222,6 +254,83 @@ def _error_fragment(exc: Exception) -> str:
 
 
 _SEVERITY_LABEL = {"error": "Error", "warning": "Warning", "info": "Info"}
+
+
+def _analysis_payload(analysis: analyzer.DocumentAnalysis, report: validators.Report) -> dict:
+    score = _publish_score(report)
+    return {
+        **analysis.as_dict(),
+        "score": {"value": score, "label": _score_label(score)},
+        "validation": {"ok": report.ok, "counts": report.counts},
+    }
+
+
+def _publish_score(report: validators.Report) -> int:
+    counts = report.counts
+    return max(0, 100 - counts["error"] * 30 - counts["warning"] * 10 - counts["info"] * 2)
+
+
+def _score_label(score: int) -> str:
+    if score >= 90:
+        return "Ready"
+    if score >= 70:
+        return "Review"
+    return "Needs work"
+
+
+def _score_class(score: int) -> str:
+    if score >= 90:
+        return "good"
+    if score >= 70:
+        return "review"
+    return "bad"
+
+
+def _inspector_fragment(
+    analysis: analyzer.DocumentAnalysis,
+    report: validators.Report,
+) -> str:
+    """Render stats and outline as an HTMX out-of-band swap into #inspector."""
+    stats = analysis.stats
+    score = _publish_score(report)
+    stat_rows = [
+        ("Words", f"{stats.words:,}"),
+        ("Read", f"{stats.reading_minutes} min" if stats.reading_minutes else "0 min"),
+        ("Headings", str(stats.headings)),
+        ("Links", str(stats.links)),
+        ("Images", str(stats.images)),
+        ("Code", str(stats.code_blocks)),
+        ("Tables", str(stats.tables)),
+        ("Lines", str(stats.lines)),
+    ]
+    stats_html = "".join(
+        f'<div class="stat"><span>{label}</span><strong>{value}</strong></div>'
+        for label, value in stat_rows
+    )
+    if analysis.outline:
+        outline = "".join(
+            '<li class="outline-item">'
+            f'<span class="outline-level">H{heading.level}</span>'
+            f'<span class="outline-title level-{heading.level}">{escape(heading.title)}</span>'
+            f'<span class="outline-line">L{heading.line}</span>'
+            "</li>"
+            for heading in analysis.outline
+        )
+        outline_html = f'<ol class="outline-list">{outline}</ol>'
+    else:
+        outline_html = '<p class="empty tight">No headings yet.</p>'
+
+    return (
+        '<div id="inspector" hx-swap-oob="true" class="inspector">'
+        '<div class="score-row">'
+        f'<div class="score {_score_class(score)}"><strong>{score}</strong>'
+        f'<span>{_score_label(score)}</span></div>'
+        f'<div class="doc-title">{escape(analysis.title)}</div>'
+        '</div>'
+        f'<div class="stats-grid">{stats_html}</div>'
+        '<div class="outline-head">Outline</div>'
+        f'{outline_html}</div>'
+    )
 
 
 def _lint_fragment(report: validators.Report) -> str:

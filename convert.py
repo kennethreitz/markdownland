@@ -7,6 +7,7 @@ formats) or to a temp file (binary formats), so nothing ever touches a shell.
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
 import tempfile
@@ -24,6 +25,10 @@ TECTONIC = shutil.which("tectonic")
 # a longer leash because tectonic may fetch LaTeX packages on first use.
 TEXT_TIMEOUT = 30
 PDF_TIMEOUT = 120
+
+_TITLE_META = re.compile(r"^\s*title\s*[:=]\s*(.+?)\s*$", re.I)
+_H1 = re.compile(r"^#\s+(.*?)\s*#*\s*$", re.M)
+_HEADING_ID = re.compile(r"\s*\{[^}]*#[A-Za-z0-9_.:-]+[^}]*\}\s*$")
 
 
 class ConversionError(RuntimeError):
@@ -96,7 +101,6 @@ TEXT_FORMATS: dict[str, TextFormat] = {
         TextFormat("html_doc", "Standalone HTML", "html5", "html", "text/html",
                    standalone=True,
                    extra_args=("--mathml", "--embed-resources",
-                               "--metadata=title:markdownland",
                                "-c", "__inline_css__")),
         TextFormat("latex", "LaTeX", "latex", "tex", "application/x-tex",
                    standalone=True),
@@ -167,6 +171,8 @@ def to_text(source: str, key: str) -> str:
     args = [_require_pandoc(), "-f", INPUT_FORMAT, "-t", fmt.pandoc_to]
     if fmt.standalone:
         args.append("-s")
+    if key == "html_doc":
+        args.append(f"--metadata=title:{_document_title(source)}")
 
     with tempfile.TemporaryDirectory() as tmp:
         for arg in fmt.extra_args:
@@ -191,6 +197,79 @@ def from_html(html: str) -> str:
     """
     args = [_require_pandoc(), "-f", "html", "-t", "gfm", "--wrap=none"]
     out = _run(args, html, timeout=TEXT_TIMEOUT)
+    return out.decode("utf-8", "replace").strip()
+
+
+def _document_title(source: str) -> str:
+    """Best-effort title for standalone exports."""
+    lines = source.splitlines()
+    if lines and lines[0].strip() in {"---", "+++"}:
+        marker = lines[0].strip()
+        for line in lines[1:]:
+            if line.strip() == marker:
+                break
+            match = _TITLE_META.match(line)
+            if match:
+                title = match.group(1).strip().strip('"\'')
+                if title:
+                    return title
+
+    match = _H1.search(source)
+    if match:
+        title = _HEADING_ID.sub("", match.group(1)).strip()
+        title = re.sub(r"[`*_~]", "", title)
+        if title:
+            return title
+    return "markdownland"
+
+
+# File extension -> pandoc reader, for importing dropped non-markdown files.
+# Not advertised in the UI; the drop handler falls back to this for anything
+# that isn't already markdown/plain text.
+IMPORT_READERS: dict[str, str] = {
+    ".docx": "docx", ".odt": "odt", ".rtf": "rtf",
+    ".epub": "epub", ".fb2": "fb2",
+    ".pptx": "pptx", ".xlsx": "xlsx",
+    ".html": "html", ".htm": "html", ".xhtml": "html",
+    ".tex": "latex", ".latex": "latex", ".ltx": "latex",
+    ".rst": "rst", ".org": "org", ".textile": "textile",
+    ".adoc": "asciidoc", ".asciidoc": "asciidoc",
+    ".ipynb": "ipynb", ".typ": "typst", ".djot": "djot",
+    ".opml": "opml", ".docbook": "docbook",
+    ".wiki": "mediawiki", ".mediawiki": "mediawiki",
+    ".man": "man", ".muse": "muse", ".jira": "jira",
+    ".csv": "csv", ".tsv": "tsv",
+}
+
+
+def importable_extensions() -> set[str]:
+    """Extensions we can import, plus the markdown/text ones handled directly."""
+    return set(IMPORT_READERS) | {".md", ".markdown", ".mdown", ".txt", ".text"}
+
+
+def from_file(data: bytes, filename: str) -> str:
+    """Import a dropped file (docx, html, rtf, …) as GFM markdown.
+
+    The reader is chosen from the file extension. Unknown extensions are tried
+    as UTF-8 text (markdown passthrough); genuinely binary unknowns raise.
+    """
+    ext = Path(filename).suffix.lower()
+    reader = IMPORT_READERS.get(ext)
+    if reader is None:
+        try:
+            return data.decode("utf-8")
+        except UnicodeDecodeError:
+            raise ConversionError(
+                f"Don't know how to import {ext or 'this file type'}."
+            ) from None
+
+    pandoc = _require_pandoc()
+    # Pandoc reads binary formats (docx/odt/epub/…) from a real file, not stdin.
+    with tempfile.TemporaryDirectory() as tmp:
+        src = Path(tmp) / f"input{ext}"
+        src.write_bytes(data)
+        args = [pandoc, "-f", reader, "-t", "gfm", "--wrap=none", str(src)]
+        out = _run(args, "", timeout=TEXT_TIMEOUT)
     return out.decode("utf-8", "replace").strip()
 
 

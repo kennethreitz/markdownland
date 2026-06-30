@@ -5,10 +5,7 @@
   const source = document.getElementById("source");
   const dropzone = document.getElementById("dropzone");
   const toast = document.getElementById("toast");
-  const filenameLabel = document.getElementById("filename-label");
-
-  // Remembered name of the last dropped/opened file (used for nice downloads).
-  let currentName = "document";
+  const filePicker = document.getElementById("file-picker");
 
   // ---- helpers --------------------------------------------------------------
 
@@ -19,11 +16,24 @@
     clearTimeout(showToast._t);
     showToast._t = setTimeout(() => { toast.hidden = true; }, 2600);
   }
+  // Tabs (tabs.js) surface storage errors through this event.
+  window.addEventListener("mdland:toast", (e) =>
+    showToast(e.detail.message, e.detail.error));
+
+  // The active tab's name drives nice download filenames.
+  const activeName = () =>
+    (window.mdland && window.mdland.activeName()) || "document";
+
+  // Open content in the editor — a new tab when tabs are available.
+  function openInEditor(name, content) {
+    if (window.mdland) window.mdland.openDoc(name, content);
+    else { source.value = content; refreshPreview(); }
+  }
 
   function formBody(extra = {}) {
     const body = new URLSearchParams();
     body.set("source", source.value);
-    body.set("filename", currentName);
+    body.set("filename", activeName());
     for (const [k, v] of Object.entries(extra)) body.set(k, v);
     return body;
   }
@@ -59,6 +69,14 @@
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  function safeStem(name) {
+    return (name || "document")
+      .split(/[\\/]/).pop()
+      .replace(/\.[^.]*$/, "")
+      .replace(/[^A-Za-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "document";
+  }
+
   // ---- file loading ---------------------------------------------------------
 
   function looksLikeMarkdown(file) {
@@ -68,21 +86,50 @@
 
   function loadFile(file) {
     if (!file) return;
-    if (!looksLikeMarkdown(file)) {
-      showToast(`Not a markdown/text file: ${file.name}`, true);
-      return;
+    if (looksLikeMarkdown(file)) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        openInEditor(file.name, reader.result);
+        showToast(`Loaded ${file.name}`);
+      };
+      reader.onerror = () => showToast("Couldn't read that file.", true);
+      reader.readAsText(file);
+    } else {
+      importFile(file); // docx, html, rtf, … -> markdown via pandoc
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      source.value = reader.result;
-      currentName = file.name;
-      filenameLabel.textContent = file.name;
-      refreshPreview();
-      showToast(`Loaded ${file.name}`);
-    };
-    reader.onerror = () => showToast("Couldn't read that file.", true);
-    reader.readAsText(file);
   }
+
+  // Import a non-markdown file by converting it server-side, then open it.
+  async function importFile(file) {
+    showToast(`Importing ${file.name}…`);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const resp = await fetch("/import/file", { method: "POST", body: fd });
+      if (!resp.ok) throw new Error(await errorText(resp));
+      const { markdown } = await resp.json();
+      openInEditor(file.name, markdown);
+      showToast(`Imported ${file.name}`);
+    } catch (err) {
+      showToast(`Couldn't import ${file.name}: ${err.message || err}`, true);
+    }
+  }
+
+  filePicker.addEventListener("change", () => {
+    if (filePicker.files.length) loadFile(filePicker.files[0]);
+    filePicker.value = "";
+  });
+
+  document.querySelector(".editor-toolbar").addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-action]");
+    if (!btn) return;
+    if (btn.dataset.action === "open") filePicker.click();
+    else if (btn.dataset.action === "clear") {
+      source.value = "";
+      source.dispatchEvent(new Event("input", { bubbles: true }));
+      showToast("Cleared");
+    }
+  });
 
   // ---- rich-text paste -> markdown ------------------------------------------
 
@@ -165,8 +212,14 @@
     const resp = await fetch(url, { method: "POST", body: formBody({ download: "1" }) });
     if (!resp.ok) { showToast(await errorText(resp), true); return; }
     const blob = await resp.blob();
-    saveBlob(blob, filenameFrom(resp, `${currentName}.${key}`));
+    saveBlob(blob, filenameFrom(resp, `${safeStem(activeName())}.${key}`));
     showToast(`Downloaded ${btn.textContent.trim()}`);
+  }
+
+  function doSourceDownload() {
+    const blob = new Blob([source.value], { type: "text/markdown;charset=utf-8" });
+    saveBlob(blob, `${safeStem(activeName())}.md`);
+    showToast("Downloaded Markdown");
   }
 
   document.querySelector(".actionbar").addEventListener("click", async (e) => {
@@ -179,6 +232,7 @@
       else if (kind === "copy-rich") await doCopyRich();
       else if (kind === "download") await doDownload(`/download/${key}`, key, btn);
       else if (kind === "text-download") await doDownload(`/text/${key}`, key, btn);
+      else if (kind === "source-download") doSourceDownload();
     } catch (err) {
       showToast(String(err.message || err), true);
     } finally {
