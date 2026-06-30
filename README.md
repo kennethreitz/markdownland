@@ -30,7 +30,8 @@ brew install pandoc tectonic
 - **Download** as PDF, DOCX, ODT, EPUB, standalone HTML, or LaTeX source.
 - **Copy as** rich text, HTML, reStructuredText, Org-mode, GFM, AsciiDoc, plain text.
 - **Publishing validator** — warnings for relative links/images, missing alt
-  text, heading-level jumps, duplicate anchors, unclosed code fences, and more.
+  text, broken internal anchors, raw HTML, duplicate anchors, unclosed code
+  fences, heading-level jumps, and more.
 
 ## Layout
 

@@ -56,11 +56,6 @@ body {
   padding: .35rem .85rem; border-bottom: 1px solid var(--line); background: var(--panel);
 }
 .btn.small { font-size: .76rem; padding: .2rem .5rem; }
-.kbd-hint { font-size: .72rem; color: var(--muted); margin-left: auto; }
-.kbd-hint kbd {
-  font: inherit; background: var(--code-bg); border: 1px solid var(--line);
-  border-radius: 4px; padding: 0 .3em;
-}
 
 #md-form { flex: 1; display: flex; min-height: 0; }
 #source {

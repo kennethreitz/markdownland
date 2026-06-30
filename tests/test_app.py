@@ -14,6 +14,8 @@ def test_index_serves_page():
     assert r.status_code == 200
     assert "markdownland" in r.text
     assert 'id="source"' in r.text
+    assert "/static/tables.js" in r.text
+    assert 'data-table="format"' in r.text
 
 
 def test_health_reports_tools():
@@ -57,6 +59,14 @@ def test_text_download_sets_disposition():
     assert r.status_code == 200
     assert "attachment" in r.headers["content-disposition"]
     assert "my-doc.tex" in r.headers["content-disposition"]
+
+
+def test_standalone_html_download_inlines_stylesheet():
+    r = client.post("/text/html_doc", data={"source": "# Hi", "download": "1"})
+    assert r.status_code == 200
+    assert "<!DOCTYPE html>" in r.text
+    assert "max-width: 46rem" in r.text
+    assert 'href=":root' not in r.text
 
 
 def test_space_heavy_body_does_not_break_decoding():

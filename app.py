@@ -97,6 +97,21 @@ async def index(req, resp):
     )
 
 
+@api.route("/import/html")
+async def import_html(req, resp):
+    """Convert pasted rich text (HTML) to markdown for the editor."""
+    data = await _read_form(req)
+    html = data.get("html", "")
+    if not html.strip():
+        resp.media = {"markdown": ""}
+        return
+    try:
+        resp.media = {"markdown": convert.from_html(html)}
+    except convert.ConversionError as exc:
+        resp.status_code = api.status_codes.HTTP_422
+        resp.media = {"error": str(exc)}
+
+
 @api.route("/preview")
 async def preview(req, resp):
     """Live HTML preview + validation, returned as HTMX fragments.

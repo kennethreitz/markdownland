@@ -167,11 +167,31 @@ def to_text(source: str, key: str) -> str:
     args = [_require_pandoc(), "-f", INPUT_FORMAT, "-t", fmt.pandoc_to]
     if fmt.standalone:
         args.append("-s")
-    for arg in fmt.extra_args:
-        args.append(_HTML_CSS if arg == "__inline_css__" else arg)
 
-    out = _run(args, source, timeout=TEXT_TIMEOUT)
+    with tempfile.TemporaryDirectory() as tmp:
+        for arg in fmt.extra_args:
+            if arg == "__inline_css__":
+                css_path = Path(tmp) / "markdownland.css"
+                css_path.write_text(_HTML_CSS, encoding="utf-8")
+                args.append(str(css_path))
+            else:
+                args.append(arg)
+
+        out = _run(args, source, timeout=TEXT_TIMEOUT)
     return out.decode("utf-8", "replace")
+
+
+def from_html(html: str) -> str:
+    """Convert pasted rich text (HTML) into GFM markdown.
+
+    Used when someone pastes from a web page, Word, or Google Docs: the browser
+    hands us ``text/html``, and we round-trip it through pandoc so the editor
+    receives clean markdown instead of raw tags. ``--wrap=none`` avoids hard
+    line wrapping that would otherwise litter the source.
+    """
+    args = [_require_pandoc(), "-f", "html", "-t", "gfm", "--wrap=none"]
+    out = _run(args, html, timeout=TEXT_TIMEOUT)
+    return out.decode("utf-8", "replace").strip()
 
 
 def to_binary(source: str, key: str) -> bytes:

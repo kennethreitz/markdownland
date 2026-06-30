@@ -84,6 +84,37 @@
     reader.readAsText(file);
   }
 
+  // ---- rich-text paste -> markdown ------------------------------------------
+
+  function insertAtCursor(text) {
+    const start = source.selectionStart, end = source.selectionEnd;
+    source.value = source.value.slice(0, start) + text + source.value.slice(end);
+    const caret = start + text.length;
+    source.setSelectionRange(caret, caret);
+    refreshPreview();
+  }
+
+  source.addEventListener("paste", async (e) => {
+    const cd = e.clipboardData;
+    if (!cd) return;
+    const html = cd.getData("text/html");
+    if (!html || !html.trim()) return; // plain text — let the browser handle it
+    e.preventDefault();
+    const plain = cd.getData("text/plain");
+    try {
+      const body = new URLSearchParams();
+      body.set("html", html);
+      const resp = await fetch("/import/html", { method: "POST", body });
+      if (!resp.ok) throw new Error(await errorText(resp));
+      const { markdown } = await resp.json();
+      insertAtCursor(markdown || plain || "");
+      showToast("Pasted rich text as markdown");
+    } catch {
+      insertAtCursor(plain || ""); // fall back to a plain-text paste
+      showToast("Pasted as plain text (conversion failed)", true);
+    }
+  });
+
   // ---- drag and drop --------------------------------------------------------
 
   let dragDepth = 0;
