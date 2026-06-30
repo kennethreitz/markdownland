@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>markdownland — convert markdown to anything</title>
+  <meta name="description" content="Drag in a markdown file and convert it to PDF, HTML, DOCX, LaTeX and more, via pandoc.">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/tables.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <div id="dropzone" hidden>
+    <div class="dropzone-inner">Drop your <code>.md</code> file</div>
+  </div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">▦</span> markdownland
+      <span class="tagline">drag in markdown · get anything out</span>
+    </div>
+    <div class="tools-status" title="External tools detected on the server">
+      {% if tools.pandoc %}<span class="ok">● pandoc</span>{% else %}<span class="bad">● pandoc missing</span>{% endif %}
+      {% if tools.tectonic %}<span class="ok">● tectonic (PDF)</span>{% else %}<span class="bad">● tectonic missing</span>{% endif %}
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="pane editor-pane">
+      <div class="pane-head">
+        <span>Markdown</span>
+        <span class="hint" id="filename-label">paste, type, or drop a file</span>
+      </div>
+      <div class="editor-toolbar">
+        <button type="button" class="btn small" data-table="insert" title="Insert a table template">⊞ Insert table</button>
+        <button type="button" class="btn small" data-table="format" title="Align table columns (⌘/Ctrl+Shift+T)">⊞ Format table</button>
+        <span class="kbd-hint">in a table: <kbd>⇥</kbd> next cell · <kbd>↵</kbd> new row</span>
+      </div>
+      <form id="md-form">
+        <textarea id="source" name="source" spellcheck="false"
+          hx-post="/preview" hx-target="#preview" hx-trigger="load, input changed delay:400ms"
+          hx-include="this" placeholder="# Start typing your markdown…">{{ sample }}</textarea>
+      </form>
+      <div id="lint" class="lint"></div>
+    </section>
+
+    <section class="pane preview-pane">
+      <div class="pane-head">
+        <span>Preview</span>
+        <span class="hint">live HTML</span>
+      </div>
+      <article id="preview" class="markdown-body"><p class="empty">Loading…</p></article>
+    </section>
+  </main>
+
+  <footer class="actionbar">
+    <div class="group">
+      <span class="group-label">Download</span>
+      {% for f in binary_formats %}
+      <button type="button" class="btn download" data-kind="download" data-key="{{ f.key }}"
+        {% if f.key == 'pdf' and not tools.tectonic %}disabled title="tectonic not installed"{% endif %}>
+        {{ f.label }}
+      </button>
+      {% endfor %}
+      <button type="button" class="btn download" data-kind="text-download" data-key="html_doc">HTML</button>
+      <button type="button" class="btn download" data-kind="text-download" data-key="latex">LaTeX</button>
+    </div>
+
+    <div class="group">
+      <span class="group-label">Copy as</span>
+      <button type="button" class="btn copy" data-kind="copy-rich">Rich text</button>
+      {% for f in text_formats %}
+      <button type="button" class="btn copy" data-kind="copy" data-key="{{ f.key }}">{{ f.label }}</button>
+      {% endfor %}
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,27 @@
+[project]
+name = "markdownland"
+version = "0.1.0"
+description = "Drag in a markdown file, get it back as anything — via pandoc."
+requires-python = ">=3.14"
+dependencies = [
+    "granian>=2.7.8",
+    "responder>=7.1.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.15.20",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
