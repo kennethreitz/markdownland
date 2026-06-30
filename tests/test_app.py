@@ -17,11 +17,18 @@ def test_index_serves_page():
     assert 'id="source"' in r.text
     assert 'id="inspector"' in r.text
     assert 'id="tabbar"' in r.text
+    assert 'href="/docs/"' in r.text
     assert "/static/tables.js" in r.text
     assert "/static/tabs.js" in r.text
     assert "/static/mermaid.js" in r.text
     assert 'data-table="format"' in r.text
     assert 'data-kind="source-download"' in r.text
+
+
+def test_api_docs_route_is_available_at_docs_slash():
+    r = client.get("/docs/")
+    assert r.status_code == 200
+    assert "markdownland" in r.text
 
 
 def test_health_reports_tools():
@@ -181,6 +188,21 @@ def test_import_file_html():
 def test_import_file_missing():
     r = client.post("/import/file", data={"nope": "1"})
     assert r.status_code == 400
+
+
+@pytest.mark.skipif(
+    shutil.which("pdftotext") is None or shutil.which("tectonic") is None,
+    reason="pdftotext (poppler) and tectonic required",
+)
+def test_import_file_pdf():
+    pdf = convert.to_binary("# PDF Heading\n\nHello from a PDF.", "pdf")
+    r = client.post(
+        "/import/file", files={"file": ("paper.pdf", pdf, "application/pdf")}
+    )
+    assert r.status_code == 200, r.text
+    md = r.json()["markdown"]
+    assert "PDF Heading" in md
+    assert "Hello from a PDF" in md
 
 
 @pytest.mark.skipif(shutil.which("tectonic") is None, reason="tectonic not installed")

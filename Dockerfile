@@ -3,7 +3,7 @@ FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim
 
 # System tools the conversion engine shells out to.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        pandoc curl ca-certificates \
+        pandoc poppler-utils curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Tectonic (self-contained LaTeX engine) for PDF output. Static musl binary.

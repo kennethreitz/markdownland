@@ -129,6 +129,7 @@ body {
   color: var(--muted); margin-right: .15rem;
 }
 .btn {
+  display: inline-flex; align-items: center; justify-content: center; text-decoration: none;
   font-size: .82rem; padding: .35rem .7rem; border-radius: 7px;
   border: 1px solid var(--line); background: var(--bg); color: var(--ink);
   cursor: pointer; transition: background .12s, border-color .12s, transform .05s;

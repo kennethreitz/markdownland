@@ -20,6 +20,7 @@ INPUT_FORMAT = "markdown+tex_math_dollars+emoji"
 
 PANDOC = shutil.which("pandoc")
 TECTONIC = shutil.which("tectonic")
+PDFTOTEXT = shutil.which("pdftotext")  # poppler, for PDF import (pandoc can't read PDF)
 
 # How long any single conversion may run before we give up (seconds). PDF gets
 # a longer leash because tectonic may fetch LaTeX packages on first use.
@@ -244,16 +245,44 @@ IMPORT_READERS: dict[str, str] = {
 
 def importable_extensions() -> set[str]:
     """Extensions we can import, plus the markdown/text ones handled directly."""
-    return set(IMPORT_READERS) | {".md", ".markdown", ".mdown", ".txt", ".text"}
+    pdf = {".pdf"} if PDFTOTEXT else set()
+    return set(IMPORT_READERS) | pdf | {".md", ".markdown", ".mdown", ".txt", ".text"}
+
+
+def from_pdf(data: bytes) -> str:
+    """Extract a PDF's text via poppler's ``pdftotext``.
+
+    PDF isn't a pandoc reader, so we shell out to ``pdftotext``. PDFs carry no
+    markdown structure, so the result is prose, lightly tidied: page breaks
+    dropped, trailing spaces trimmed, runs of blank lines collapsed.
+    """
+    if not PDFTOTEXT:
+        raise ToolMissingError(
+            "pdftotext (poppler) is not installed, so PDF import is unavailable. "
+            "Install it (e.g. `brew install poppler`) and restart the server."
+        )
+    with tempfile.TemporaryDirectory() as tmp:
+        src = Path(tmp) / "input.pdf"
+        src.write_bytes(data)
+        out = _run(
+            [PDFTOTEXT, "-enc", "UTF-8", "-nopgbrk", str(src), "-"],
+            "", timeout=TEXT_TIMEOUT,
+        )
+    text = out.decode("utf-8", "replace")
+    text = re.sub(r"[ \t]+\n", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
 
 
 def from_file(data: bytes, filename: str) -> str:
-    """Import a dropped file (docx, html, rtf, …) as GFM markdown.
+    """Import a dropped file (pdf, docx, html, rtf, …) as GFM markdown.
 
     The reader is chosen from the file extension. Unknown extensions are tried
     as UTF-8 text (markdown passthrough); genuinely binary unknowns raise.
     """
     ext = Path(filename).suffix.lower()
+    if ext == ".pdf":
+        return from_pdf(data)
     reader = IMPORT_READERS.get(ext)
     if reader is None:
         try:
@@ -303,15 +332,20 @@ def health() -> dict[str, object]:
     def version(binary: str | None) -> str | None:
         if not binary:
             return None
-        try:
-            out = subprocess.run(
-                [binary, "--version"], capture_output=True, timeout=10
-            )
-            return out.stdout.decode("utf-8", "replace").splitlines()[0]
-        except Exception:
-            return "unknown"
+        # pandoc/tectonic use --version; poppler's pdftotext uses -v (stderr).
+        for flag in ("--version", "-v"):
+            try:
+                out = subprocess.run([binary, flag], capture_output=True, timeout=10)
+            except Exception:
+                continue
+            text = (out.stdout or out.stderr).decode("utf-8", "replace").strip()
+            first = text.splitlines()[0] if text.splitlines() else ""
+            if first and not any(w in first.lower() for w in ("error", "couldn't")):
+                return first
+        return "unknown"
 
     return {
         "pandoc": version(PANDOC),
         "tectonic": version(TECTONIC),
+        "pdftotext": version(PDFTOTEXT),
     }
