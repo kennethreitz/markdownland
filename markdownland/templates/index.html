@@ -24,11 +24,13 @@
     </div>
     <div class="topbar-right">
       <a class="btn small" href="/docs/" target="_blank" rel="noreferrer">API Docs</a>
+      <a class="btn small" href="/formats" target="_blank" rel="noreferrer">Formats</a>
       <button id="inspector-toggle" type="button" class="btn small" aria-pressed="false"
               title="Show or hide the inspector panel">Inspector</button>
       <div class="tools-status" title="External tools detected on the server">
         {% if tools.pandoc %}<span class="ok">● pandoc</span>{% else %}<span class="bad">● pandoc missing</span>{% endif %}
         {% if tools.tectonic %}<span class="ok">● tectonic (PDF)</span>{% else %}<span class="bad">● tectonic missing</span>{% endif %}
+        {% if tools.pdftotext %}<span class="ok">● pdftotext (PDF import)</span>{% else %}<span class="bad">● pdftotext missing</span>{% endif %}
       </div>
     </div>
   </header>
@@ -41,7 +43,7 @@
         <span class="hint" id="filename-label">paste, type, or drop a file</span>
       </div>
       <div class="editor-toolbar">
-        <input id="file-picker" type="file" hidden>
+        <input id="file-picker" type="file" accept="{{ import_accept }}" hidden>
         <button type="button" class="btn small" data-action="open">Open</button>
         <button type="button" class="btn small" data-table="insert" title="Insert a table template">⊞ Insert table</button>
         <button type="button" class="btn small" data-table="format" title="Align table columns (⌘/Ctrl+Shift+T)">⊞ Format table</button>

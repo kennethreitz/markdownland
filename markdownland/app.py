@@ -99,6 +99,7 @@ async def index(req, resp):
         sample=SAMPLE,
         text_formats=convert.TEXT_FORMATS.values(),
         binary_formats=convert.BINARY_FORMATS.values(),
+        import_accept=convert.import_accept(),
         tools=convert.health(),
     )
 
@@ -244,6 +245,12 @@ async def analyze(req, resp):
 @api.route("/health")
 async def health(req, resp):
     resp.media = {"status": "ok", "tools": convert.health()}
+
+
+@api.route("/formats")
+async def formats(req, resp):
+    """Supported import/export formats as JSON, with live tool availability."""
+    resp.media = convert.format_catalog()
 
 
 def _wants_download(data) -> bool:

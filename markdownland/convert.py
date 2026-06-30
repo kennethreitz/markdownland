@@ -13,6 +13,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 # Pandoc's extended markdown is the richest reader (tables, math, footnotes,
 # definition lists, ...). ``tex_math_dollars`` lets people write $x^2$ math.
@@ -30,6 +31,9 @@ PDF_TIMEOUT = 120
 _TITLE_META = re.compile(r"^\s*title\s*[:=]\s*(.+?)\s*$", re.I)
 _H1 = re.compile(r"^#\s+(.*?)\s*#*\s*$", re.M)
 _HEADING_ID = re.compile(r"\s*\{[^}]*#[A-Za-z0-9_.:-]+[^}]*\}\s*$")
+
+_TEXT_EXTENSIONS = {".md", ".markdown", ".mdown", ".mkd", ".txt", ".text"}
+_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
 
 class ConversionError(RuntimeError):
@@ -243,10 +247,121 @@ IMPORT_READERS: dict[str, str] = {
 }
 
 
+IMPORT_GROUPS: tuple[dict[str, Any], ...] = (
+    {
+        "key": "markdown",
+        "label": "Markdown / plain text",
+        "extensions": sorted(_TEXT_EXTENSIONS),
+        "requires": [],
+        "tool": None,
+    },
+    {
+        "key": "office",
+        "label": "Office documents",
+        "extensions": [".docx", ".odt", ".rtf", ".pptx", ".xlsx"],
+        "requires": ["pandoc"],
+        "tool": "pandoc",
+    },
+    {
+        "key": "web",
+        "label": "Web and ebooks",
+        "extensions": [".html", ".htm", ".xhtml", ".epub", ".fb2"],
+        "requires": ["pandoc"],
+        "tool": "pandoc",
+    },
+    {
+        "key": "source",
+        "label": "Markup and source formats",
+        "extensions": [
+            ".adoc", ".asciidoc", ".csv", ".djot", ".docbook", ".ipynb",
+            ".jira", ".latex", ".ltx", ".man", ".mediawiki", ".muse",
+            ".opml", ".org", ".rst", ".tex", ".textile", ".tsv", ".typ",
+            ".wiki",
+        ],
+        "requires": ["pandoc"],
+        "tool": "pandoc",
+    },
+    {
+        "key": "pdf",
+        "label": "PDF",
+        "extensions": [".pdf"],
+        "requires": ["pdftotext"],
+        "tool": "pdftotext",
+    },
+)
+
+
+def _tool_available(tool: str | None) -> bool:
+    if tool is None:
+        return True
+    return {
+        "pandoc": bool(PANDOC),
+        "tectonic": bool(TECTONIC),
+        "pdftotext": bool(PDFTOTEXT),
+    }.get(tool, False)
+
+
 def importable_extensions() -> set[str]:
     """Extensions we can import, plus the markdown/text ones handled directly."""
     pdf = {".pdf"} if PDFTOTEXT else set()
-    return set(IMPORT_READERS) | pdf | {".md", ".markdown", ".mdown", ".txt", ".text"}
+    return set(IMPORT_READERS) | pdf | _TEXT_EXTENSIONS
+
+
+def import_accept() -> str:
+    """HTML file-input accept value for formats currently importable."""
+    return ",".join(sorted(importable_extensions()))
+
+
+def format_catalog() -> dict[str, object]:
+    """JSON-friendly catalog of import/export support and tool availability."""
+    tools = health()
+    text = [
+        {
+            "key": f.key,
+            "label": f.label,
+            "extension": f".{f.extension}",
+            "mimetype": f.mimetype,
+            "standalone": f.standalone,
+            "available": bool(PANDOC),
+            "requires": ["pandoc"],
+        }
+        for f in TEXT_FORMATS.values()
+    ]
+    binary = [
+        {
+            "key": f.key,
+            "label": f.label,
+            "extension": f".{f.extension}",
+            "mimetype": f.mimetype,
+            "available": bool(PANDOC) and (not f.needs_tectonic or bool(TECTONIC)),
+            "requires": ["pandoc", *(["tectonic"] if f.needs_tectonic else [])],
+        }
+        for f in BINARY_FORMATS.values()
+    ]
+    imports = [
+        {
+            **group,
+            "available": _tool_available(group["tool"]),
+        }
+        for group in IMPORT_GROUPS
+    ]
+    return {"tools": tools, "text": text, "binary": binary, "import": imports}
+
+
+def _decode_unknown_text(data: bytes, ext: str) -> str:
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        raise ConversionError(
+            f"Don't know how to import {ext or 'this file type'}."
+        ) from None
+
+    controls = len(_CONTROL_CHARS.findall(text))
+    if controls and controls / max(len(text), 1) > 0.01:
+        raise ConversionError(
+            f"Don't know how to import {ext or 'this file type'}."
+        )
+    return text
 
 
 def from_pdf(data: bytes) -> str:
@@ -285,12 +400,7 @@ def from_file(data: bytes, filename: str) -> str:
         return from_pdf(data)
     reader = IMPORT_READERS.get(ext)
     if reader is None:
-        try:
-            return data.decode("utf-8")
-        except UnicodeDecodeError:
-            raise ConversionError(
-                f"Don't know how to import {ext or 'this file type'}."
-            ) from None
+        return _decode_unknown_text(data, ext)
 
     pandoc = _require_pandoc()
     # Pandoc reads binary formats (docx/odt/epub/…) from a real file, not stdin.

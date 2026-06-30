@@ -82,6 +82,13 @@ make dev        # run with autoreload
 Once deps are synced you can also start it directly with the installed
 entrypoint — `uv run markdownland` (or just `markdownland` inside the venv).
 
+## API surface
+
+The Responder API docs live at `/docs/` when the server is running. The app also
+exposes `/health` for detected tool versions and `/formats` for a JSON catalog
+of import/export formats, including which ones are currently available on the
+machine.
+
 ## Project layout
 
 | Path | Purpose |

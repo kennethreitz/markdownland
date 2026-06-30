@@ -18,6 +18,9 @@ def test_index_serves_page():
     assert 'id="inspector"' in r.text
     assert 'id="tabbar"' in r.text
     assert 'href="/docs/"' in r.text
+    assert 'href="/formats"' in r.text
+    assert "pdftotext" in r.text
+    assert 'accept="' in r.text and ".mkd" in r.text
     assert "/static/tables.js" in r.text
     assert "/static/tabs.js" in r.text
     assert "/static/mermaid.js" in r.text
@@ -37,6 +40,18 @@ def test_health_reports_tools():
     body = r.json()
     assert body["status"] == "ok"
     assert "pandoc" in body["tools"]
+    assert "pdftotext" in body["tools"]
+
+
+def test_formats_endpoint_json():
+    r = client.get("/formats")
+    assert r.status_code == 200
+    body = r.json()
+    assert {"tools", "text", "binary", "import"} <= body.keys()
+    assert any(item["key"] == "html" for item in body["text"])
+    assert any(item["key"] == "pdf" for item in body["binary"])
+    assert any(".docx" in item["extensions"] for item in body["import"])
+    assert any(item["key"] == "pdf" for item in body["import"])
 
 
 def test_preview_renders_html_and_lint():
