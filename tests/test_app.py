@@ -47,22 +47,28 @@ def test_formats_endpoint_json():
     r = client.get("/formats")
     assert r.status_code == 200
     body = r.json()
-    assert {"tools", "text", "binary", "import"} <= body.keys()
-    assert any(item["key"] == "html" for item in body["text"])
-    assert any(item["key"] == "pdf" for item in body["binary"])
+    assert {"tools", "accept", "routes", "text", "binary", "import"} <= body.keys()
+    assert ".mkd" in body["accept"]
+    assert any(route["path"] == "/docs/" for route in body["routes"])
+    assert any(item["key"] == "html" and item["endpoint"] == "/text/html" for item in body["text"])
+    assert any(
+        item["key"] == "pdf" and item["endpoint"] == "/download/pdf" for item in body["binary"]
+    )
     assert any(".docx" in item["extensions"] for item in body["import"])
-    assert any(item["key"] == "pdf" for item in body["import"])
+    assert any(
+        item["key"] == "pdf" and item["endpoint"] == "/import/file" for item in body["import"]
+    )
 
 
 def test_preview_renders_html_and_lint():
     r = client.post("/preview", data={"source": "# Hi\n\n[x](rel/path.md)"})
     assert r.status_code == 200
-    assert "<h1" in r.text                       # rendered markdown
-    assert 'id="lint"' in r.text                 # OOB validation panel
-    assert 'id="inspector"' in r.text            # OOB document inspector
+    assert "<h1" in r.text  # rendered markdown
+    assert 'id="lint"' in r.text  # OOB validation panel
+    assert 'id="inspector"' in r.text  # OOB document inspector
     assert "Words" in r.text
     assert "hx-swap-oob" in r.text
-    assert "relative" in r.text.lower()          # the finding
+    assert "relative" in r.text.lower()  # the finding
 
 
 def test_preview_empty_source():
@@ -75,7 +81,7 @@ def test_text_conversion_rst():
     r = client.post("/text/rst", data={"source": "# Title\n\nHello **bold**."})
     assert r.status_code == 200
     assert "Title" in r.text
-    assert "=====" in r.text                     # rST underlines headings
+    assert "=====" in r.text  # rST underlines headings
 
 
 def test_text_conversion_unknown_format():
@@ -84,8 +90,9 @@ def test_text_conversion_unknown_format():
 
 
 def test_text_download_sets_disposition():
-    r = client.post("/text/latex", data={"source": "# Hi", "download": "1",
-                                         "filename": "my doc.md"})
+    r = client.post(
+        "/text/latex", data={"source": "# Hi", "download": "1", "filename": "my doc.md"}
+    )
     assert r.status_code == 200
     assert "attachment" in r.headers["content-disposition"]
     assert "my-doc.tex" in r.headers["content-disposition"]
@@ -132,8 +139,7 @@ def test_analyze_endpoint_json():
 def test_space_heavy_body_does_not_break_decoding():
     # urlencoded forms turn spaces into '+', which chardet can mis-detect as
     # UTF-7 and crash. A long, space-heavy, non-ASCII body must still decode.
-    source = ("# Title\n\n" + "word " * 400 + "\n\nGreek café résumé 🚀 — "
-              "see [docs](rel/guide.md)")
+    source = "# Title\n\n" + "word " * 400 + "\n\nGreek café résumé 🚀 — see [docs](rel/guide.md)"
     r = client.post("/validate", data={"source": source})
     assert r.status_code == 200, r.text
     body = r.json()
@@ -158,7 +164,7 @@ def test_docx_download():
     r = client.post("/download/docx", data={"source": "# Hello\n\nWorld."})
     assert r.status_code == 200
     assert r.headers["content-disposition"].endswith('.docx"')
-    assert r.content[:2] == b"PK"                # docx is a zip
+    assert r.content[:2] == b"PK"  # docx is a zip
 
 
 def test_import_html_endpoint():
@@ -180,9 +186,13 @@ def test_import_file_docx_round_trip():
     docx = convert.to_binary("# Imported\n\nHello **world**.", "docx")
     r = client.post(
         "/import/file",
-        files={"file": ("report.docx", docx,
-                        "application/vnd.openxmlformats-officedocument."
-                        "wordprocessingml.document")},
+        files={
+            "file": (
+                "report.docx",
+                docx,
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+        },
     )
     assert r.status_code == 200, r.text
     body = r.json()
@@ -211,9 +221,7 @@ def test_import_file_missing():
 )
 def test_import_file_pdf():
     pdf = convert.to_binary("# PDF Heading\n\nHello from a PDF.", "pdf")
-    r = client.post(
-        "/import/file", files={"file": ("paper.pdf", pdf, "application/pdf")}
-    )
+    r = client.post("/import/file", files={"file": ("paper.pdf", pdf, "application/pdf")})
     assert r.status_code == 200, r.text
     md = r.json()["markdown"]
     assert "PDF Heading" in md

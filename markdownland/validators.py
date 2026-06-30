@@ -22,8 +22,8 @@ SEVERITY_ORDER = {"error": 0, "warning": 1, "info": 2}
 @dataclass(frozen=True)
 class Finding:
     line: int
-    severity: str          # "error" | "warning" | "info"
-    rule: str              # short stable id, e.g. "relative-link"
+    severity: str  # "error" | "warning" | "info"
+    rule: str  # short stable id, e.g. "relative-link"
     message: str
     snippet: str = ""
 
@@ -86,7 +86,7 @@ def _frontmatter(lines: list[str]) -> tuple[set[int], bool]:
     for offset, line in enumerate(lines[1:], start=2):
         if line.strip() != marker:
             continue
-        block = lines[1:offset - 1]
+        block = lines[1 : offset - 1]
         skipped = set(range(1, offset + 1))
         has_title = any(_metadata_value(line) for line in block)
         return skipped, has_title
@@ -97,7 +97,7 @@ def _metadata_value(line: str) -> str:
     match = _TITLE_META.match(line)
     if not match:
         return ""
-    value = match.group(1).strip().strip('"\'')
+    value = match.group(1).strip().strip("\"'")
     return value
 
 
@@ -106,7 +106,7 @@ def _heading_title_and_id(raw_title: str) -> tuple[str, str | None]:
     match = _HEADING_ID.search(raw_title)
     if not match:
         return raw_title.strip(), None
-    return raw_title[:match.start()].strip(), match.group(1)
+    return raw_title[: match.start()].strip(), match.group(1)
 
 
 def validate(source: str) -> Report:
@@ -116,7 +116,7 @@ def validate(source: str) -> Report:
 
     in_fence = False
     fence_marker = ""
-    heading_levels: list[tuple[int, int]] = []   # (line, level)
+    heading_levels: list[tuple[int, int]] = []  # (line, level)
     seen_anchors: dict[str, int] = {}
     anchor_refs: list[tuple[int, str, str]] = []  # (line, anchor, snippet)
     has_h1 = False
@@ -142,47 +142,73 @@ def validate(source: str) -> Report:
             snippet = m.group(0)
             if is_image:
                 if _is_local(target):
-                    findings.append(Finding(
-                        i, "error", "local-image",
-                        f"Image “{target}” is a local path — it won't be embedded "
-                        "in the published file. Use a full URL or a data: URI.",
-                        snippet))
+                    findings.append(
+                        Finding(
+                            i,
+                            "error",
+                            "local-image",
+                            f"Image “{target}” is a local path — it won't be embedded "
+                            "in the published file. Use a full URL or a data: URI.",
+                            snippet,
+                        )
+                    )
                 if not text.strip():
-                    findings.append(Finding(
-                        i, "warning", "image-alt",
-                        "Image has no alt text (hurts accessibility & PDF a11y).",
-                        snippet))
+                    findings.append(
+                        Finding(
+                            i,
+                            "warning",
+                            "image-alt",
+                            "Image has no alt text (hurts accessibility & PDF a11y).",
+                            snippet,
+                        )
+                    )
             else:
                 if _is_local(target) and not target.startswith("#"):
-                    findings.append(Finding(
-                        i, "warning", "relative-link",
-                        f"Link to “{target}” is relative — it will break once the "
-                        "document is published elsewhere. Use an absolute URL.",
-                        snippet))
+                    findings.append(
+                        Finding(
+                            i,
+                            "warning",
+                            "relative-link",
+                            f"Link to “{target}” is relative — it will break once the "
+                            "document is published elsewhere. Use an absolute URL.",
+                            snippet,
+                        )
+                    )
                 if target.startswith("#"):
                     anchor = unquote(target[1:]).strip()
                     if anchor:
                         anchor_refs.append((i, anchor, snippet))
                     else:
-                        findings.append(Finding(
-                            i, "info", "empty-anchor",
-                            "Link points to “#” without a destination anchor.",
-                            snippet))
+                        findings.append(
+                            Finding(
+                                i,
+                                "info",
+                                "empty-anchor",
+                                "Link points to “#” without a destination anchor.",
+                                snippet,
+                            )
+                        )
                 if not text.strip():
-                    findings.append(Finding(
-                        i, "warning", "empty-link-text",
-                        "Link has no visible text.", snippet))
+                    findings.append(
+                        Finding(
+                            i, "warning", "empty-link-text", "Link has no visible text.", snippet
+                        )
+                    )
 
         # --- wikilinks (Obsidian-style) --------------------------------------
         for m in _WIKILINK.finditer(line):
             inner = m.group(2).strip()
             if m.group(1) == "!":
-                msg = (f"Wikilink embed “![[{inner}]]” is Obsidian-only — it "
-                       "won't embed in published output. Use ![alt](url).")
+                msg = (
+                    f"Wikilink embed “![[{inner}]]” is Obsidian-only — it "
+                    "won't embed in published output. Use ![alt](url)."
+                )
             else:
-                msg = (f"Wikilink “[[{inner}]]” is Obsidian/wiki syntax — it "
-                       "renders as literal text outside a wiki. Use a "
-                       "[label](url) link.")
+                msg = (
+                    f"Wikilink “[[{inner}]]” is Obsidian/wiki syntax — it "
+                    "renders as literal text outside a wiki. Use a "
+                    "[label](url) link."
+                )
             findings.append(Finding(i, "warning", "wikilink", msg, m.group(0)))
 
         # --- headings ---------------------------------------------------------
@@ -195,59 +221,100 @@ def validate(source: str) -> Report:
             anchor = explicit_id or _slug(title)
             if anchor:
                 if anchor in seen_anchors:
-                    findings.append(Finding(
-                        i, "warning", "duplicate-heading",
-                        f"Heading “{title}” collides with the anchor from "
-                        f"line {seen_anchors[anchor]} (#{anchor}).", line.strip()))
+                    findings.append(
+                        Finding(
+                            i,
+                            "warning",
+                            "duplicate-heading",
+                            f"Heading “{title}” collides with the anchor from "
+                            f"line {seen_anchors[anchor]} (#{anchor}).",
+                            line.strip(),
+                        )
+                    )
                 else:
                     seen_anchors[anchor] = i
 
         # --- misc -------------------------------------------------------------
         if _TODO.search(line):
-            findings.append(Finding(
-                i, "info", "todo-marker",
-                "Leftover TODO/FIXME/XXX marker.", line.strip()))
+            findings.append(
+                Finding(i, "info", "todo-marker", "Leftover TODO/FIXME/XXX marker.", line.strip())
+            )
         if _BARE_URL.search(line):
-            findings.append(Finding(
-                i, "info", "bare-url",
-                "Bare URL — wrap it in <…> or [text](…) so every renderer links it.",
-                line.strip()))
+            findings.append(
+                Finding(
+                    i,
+                    "info",
+                    "bare-url",
+                    "Bare URL — wrap it in <…> or [text](…) so every renderer links it.",
+                    line.strip(),
+                )
+            )
         if _DANGEROUS_HTML.search(line):
-            findings.append(Finding(
-                i, "error", "dangerous-html",
-                "Raw embed/script HTML can execute or be stripped in published output.",
-                line.strip()))
+            findings.append(
+                Finding(
+                    i,
+                    "error",
+                    "dangerous-html",
+                    "Raw embed/script HTML can execute or be stripped in published output.",
+                    line.strip(),
+                )
+            )
         elif _HTML_TAG.search(line):
-            findings.append(Finding(
-                i, "warning", "raw-html",
-                "Raw HTML may not survive PDF, DOCX, EPUB, or non-HTML exports.",
-                line.strip()))
+            findings.append(
+                Finding(
+                    i,
+                    "warning",
+                    "raw-html",
+                    "Raw HTML may not survive PDF, DOCX, EPUB, or non-HTML exports.",
+                    line.strip(),
+                )
+            )
 
     # --- document-level checks ------------------------------------------------
     if in_fence:
-        findings.append(Finding(
-            len(lines) or 1, "error", "unclosed-fence",
-            "Unclosed code fence — the rest of the document is swallowed as code."))
+        findings.append(
+            Finding(
+                len(lines) or 1,
+                "error",
+                "unclosed-fence",
+                "Unclosed code fence — the rest of the document is swallowed as code.",
+            )
+        )
 
     if heading_levels and not has_h1 and not metadata_has_title:
-        findings.append(Finding(
-            heading_levels[0][0], "info", "no-title",
-            "No level-1 heading — the published PDF/HTML may lack a title."))
+        findings.append(
+            Finding(
+                heading_levels[0][0],
+                "info",
+                "no-title",
+                "No level-1 heading — the published PDF/HTML may lack a title.",
+            )
+        )
 
     for line, anchor, snippet in anchor_refs:
         if anchor not in seen_anchors:
-            findings.append(Finding(
-                line, "warning", "missing-anchor",
-                f"Link points to #{anchor}, but no matching heading anchor was found.",
-                snippet))
+            findings.append(
+                Finding(
+                    line,
+                    "warning",
+                    "missing-anchor",
+                    f"Link points to #{anchor}, but no matching heading anchor was found.",
+                    snippet,
+                )
+            )
 
     prev = 0
     for ln, level in heading_levels:
         if prev and level > prev + 1:
-            findings.append(Finding(
-                ln, "warning", "heading-skip",
-                f"Heading jumps from H{prev} to H{level}; outlines and PDF "
-                "bookmarks expect one level at a time."))
+            findings.append(
+                Finding(
+                    ln,
+                    "warning",
+                    "heading-skip",
+                    f"Heading jumps from H{prev} to H{level}; outlines and PDF "
+                    "bookmarks expect one level at a time.",
+                )
+            )
         prev = level
 
     findings.sort(key=lambda f: (f.line, SEVERITY_ORDER[f.severity]))

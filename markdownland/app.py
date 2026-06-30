@@ -23,6 +23,8 @@ api = responder.API(
     title="markdownland",
     version="0.1.0",
     description="Convert markdown to anything, via pandoc.",
+    # Enables the OpenAPI schema at /schema.yml that the /docs/ UI fetches.
+    openapi="3.0.3",
     docs_route="/docs/",
     secret_key=os.environ.get("RESPONDER_SECRET_KEY", "markdownland-dev"),
     # Static files and templates live inside the package, not the CWD.
@@ -225,8 +227,11 @@ async def validate(req, resp):
         "counts": report.counts,
         "findings": [
             {
-                "line": f.line, "severity": f.severity,
-                "rule": f.rule, "message": f.message, "snippet": f.snippet,
+                "line": f.line,
+                "severity": f.severity,
+                "rule": f.rule,
+                "message": f.message,
+                "snippet": f.snippet,
             }
             for f in report.findings
         ],
@@ -259,8 +264,7 @@ def _wants_download(data) -> bool:
 
 def _error_fragment(exc: Exception) -> str:
     return (
-        '<div class="error"><strong>Conversion failed.</strong>'
-        f"<pre>{escape(str(exc))}</pre></div>"
+        f'<div class="error"><strong>Conversion failed.</strong><pre>{escape(str(exc))}</pre></div>'
     )
 
 
@@ -335,12 +339,12 @@ def _inspector_fragment(
         '<div id="inspector" hx-swap-oob="true" class="inspector">'
         '<div class="score-row">'
         f'<div class="score {_score_class(score)}"><strong>{score}</strong>'
-        f'<span>{_score_label(score)}</span></div>'
+        f"<span>{_score_label(score)}</span></div>"
         f'<div class="doc-title">{escape(analysis.title)}</div>'
-        '</div>'
+        "</div>"
         f'<div class="stats-grid">{stats_html}</div>'
         '<div class="outline-head">Outline</div>'
-        f'{outline_html}</div>'
+        f"{outline_html}</div>"
     )
 
 
@@ -356,16 +360,13 @@ def _lint_fragment(report: validators.Report) -> str:
             if counts[sev]:
                 chips.append(
                     f'<span class="lint-chip {sev}">{counts[sev]} '
-                    f'{_SEVERITY_LABEL[sev].lower()}'
-                    f'{"s" if counts[sev] != 1 else ""}</span>'
+                    f"{_SEVERITY_LABEL[sev].lower()}"
+                    f"{'s' if counts[sev] != 1 else ''}</span>"
                 )
         summary = "".join(chips)
         rows = []
         for f in report.findings:
-            snippet = (
-                f'<code class="lint-snippet">{escape(f.snippet)}</code>'
-                if f.snippet else ""
-            )
+            snippet = f'<code class="lint-snippet">{escape(f.snippet)}</code>' if f.snippet else ""
             rows.append(
                 f'<li class="lint-item {f.severity}">'
                 f'<span class="lint-line">L{f.line}</span>'

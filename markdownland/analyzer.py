@@ -133,7 +133,7 @@ def _frontmatter(lines: list[str]) -> tuple[set[int], str]:
     for offset, line in enumerate(lines[1:], start=2):
         if line.strip() != marker:
             continue
-        body = lines[1:offset - 1]
+        body = lines[1 : offset - 1]
         return set(range(1, offset + 1)), _metadata_title(body)
     return set(), ""
 
@@ -142,7 +142,7 @@ def _metadata_title(lines: list[str]) -> str:
     for line in lines:
         match = _TITLE_META.match(line)
         if match:
-            return match.group(1).strip().strip('"\'')
+            return match.group(1).strip().strip("\"'")
     return ""
 
 
@@ -159,7 +159,7 @@ def _heading_title_and_id(raw_title: str) -> tuple[str, str | None]:
     match = _HEADING_ID.search(raw_title)
     if not match:
         return raw_title.strip(), None
-    return raw_title[:match.start()].strip(), match.group(1)
+    return raw_title[: match.start()].strip(), match.group(1)
 
 
 def _first_h1(outline: list[Heading]) -> str:
@@ -192,10 +192,10 @@ def _count_tables(lines: list[str], candidates: set[int], skip: set[int]) -> int
             continue
         prev_line = lines[idx - 2] if idx >= 2 else ""
         next_line = lines[idx] if idx < len(lines) else ""
-        is_table_line = (
-            idx in candidates
-            and (_TABLE_SEPARATOR.match(line) or _TABLE_SEPARATOR.match(prev_line)
-                 or _TABLE_SEPARATOR.match(next_line))
+        is_table_line = idx in candidates and (
+            _TABLE_SEPARATOR.match(line)
+            or _TABLE_SEPARATOR.match(prev_line)
+            or _TABLE_SEPARATOR.match(next_line)
         )
         if is_table_line and not in_table:
             tables += 1

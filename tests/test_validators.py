@@ -124,9 +124,7 @@ def test_frontmatter_title_suppresses_no_title_hint():
 
 
 def test_clean_document_reports_ok():
-    report = validators.validate(
-        "# Title\n\n## Section\n\nA [link](https://example.com).\n"
-    )
+    report = validators.validate("# Title\n\n## Section\n\nA [link](https://example.com).\n")
     assert report.ok
     assert report.counts == {"error": 0, "warning": 0, "info": 0}
 
