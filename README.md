@@ -58,6 +58,9 @@ brew install uv
 
 # 2. The document tools markdownland shells out to
 brew install pandoc tectonic poppler
+
+# 3. (optional) mermaid-cli — renders flowcharts into PDF/DOCX exports
+npm install -g @mermaid-js/mermaid-cli
 ```
 
 | Tool | Powers | Needed for |
@@ -65,10 +68,13 @@ brew install pandoc tectonic poppler
 | **pandoc** | every format conversion | required |
 | **tectonic** | Markdown → **PDF** via LaTeX | PDF *export* |
 | **poppler** (`pdftotext`) | **PDF** → Markdown | PDF *import* |
+| **mermaid-cli** (`mmdc`) | ` ```mermaid ` diagrams → images | flowcharts in exports |
 
-> markdownland degrades gracefully: if `tectonic` or `poppler` is missing, the
-> rest still works and the top bar shows which tools were found. (Mermaid
-> diagrams load from a CDN, so they need an internet connection.)
+> markdownland degrades gracefully: if `tectonic`, `poppler`, or `mmdc` is
+> missing, the rest still works and the top bar shows which tools were found.
+> (In the live preview, mermaid diagrams render in-browser; `mmdc` is only
+> needed to bake them into exported files. The browser preview loads mermaid
+> from a CDN, so it needs an internet connection.)
 
 Then:
 

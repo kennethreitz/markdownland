@@ -7,6 +7,21 @@ import pytest
 from markdownland import convert
 
 
+def test_embed_mermaid_is_noop_without_blocks(tmp_path):
+    assert convert._embed_mermaid("# No diagrams here", tmp_path) == "# No diagrams here"
+
+
+@pytest.mark.skipif(
+    shutil.which("mmdc") is None or shutil.which("tectonic") is None,
+    reason="mmdc (mermaid-cli) and tectonic required",
+)
+def test_mermaid_flowchart_renders_into_pdf():
+    src = "# Chart\n\n```mermaid\ngraph TD\n  A[Start] --> B[End]\n```\n"
+    pdf = convert.to_binary(src, "pdf")
+    assert pdf[:5] == b"%PDF-"
+    assert b"/XObject" in pdf or b"/Image" in pdf  # the rendered diagram image
+
+
 def test_single_newlines_render_as_line_breaks():
     # Poetry / lyrics: a single newline must become a real break, not a space.
     html = convert.to_text("Roses are red,\nViolets are blue,", "html")

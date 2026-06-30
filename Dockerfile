@@ -1,10 +1,17 @@
 # markdownland — Responder app on Granian, with pandoc + tectonic for conversions.
 FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim
 
-# System tools the conversion engine shells out to.
+# System tools the conversion engine shells out to. Chromium + fonts are for
+# mermaid-cli (mmdc), which renders ```mermaid diagrams to images for export.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         pandoc poppler-utils curl ca-certificates \
+        nodejs npm chromium fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
+
+# mermaid-cli, told to use the system Chromium instead of downloading its own.
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1 \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+RUN npm install -g @mermaid-js/mermaid-cli && npm cache clean --force
 
 # Tectonic (self-contained LaTeX engine) for PDF output. Static musl binary.
 ARG TECTONIC_VERSION=0.15.0

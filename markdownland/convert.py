@@ -26,11 +26,13 @@ INPUT_FORMAT = "markdown+tex_math_dollars+emoji+hard_line_breaks"
 PANDOC = shutil.which("pandoc")
 TECTONIC = shutil.which("tectonic")
 PDFTOTEXT = shutil.which("pdftotext")  # poppler, for PDF import (pandoc can't read PDF)
+MMDC = shutil.which("mmdc")  # mermaid-cli, to render ```mermaid blocks into images
 
 # How long any single conversion may run before we give up (seconds). PDF gets
 # a longer leash because tectonic may fetch LaTeX packages on first use.
 TEXT_TIMEOUT = 30
 PDF_TIMEOUT = 120
+MERMAID_TIMEOUT = 60  # mmdc spins up headless Chromium, which is slow to start
 
 _TITLE_META = re.compile(r"^\s*title\s*[:=]\s*(.+?)\s*$", re.I)
 _H1 = re.compile(r"^#\s+(.*?)\s*#*\s*$", re.M)
@@ -183,6 +185,64 @@ def _run(args: list[str], source: str, *, timeout: int) -> bytes:
     return proc.stdout
 
 
+# A fenced ```mermaid block (captures leading indent + the diagram body).
+_MERMAID_BLOCK = re.compile(
+    r"^([ \t]*)```+[ \t]*mermaid[ \t]*\n(.*?)\n[ \t]*```+[ \t]*$",
+    re.MULTILINE | re.DOTALL | re.IGNORECASE,
+)
+
+
+@lru_cache(maxsize=64)
+def _render_mermaid_png(diagram: str) -> bytes:
+    """Render one mermaid diagram to PNG bytes via mmdc. Cached by source."""
+    with tempfile.TemporaryDirectory() as tmp:
+        in_path = Path(tmp) / "diagram.mmd"
+        out_path = Path(tmp) / "diagram.png"
+        in_path.write_text(diagram, encoding="utf-8")
+        # --no-sandbox keeps Chromium happy under Docker/root; harmless elsewhere.
+        cfg = Path(tmp) / "puppeteer.json"
+        cfg.write_text('{"args": ["--no-sandbox"]}', encoding="utf-8")
+        args = [
+            MMDC, "--input", str(in_path), "--output", str(out_path),
+            "--backgroundColor", "white", "--scale", "3",
+            "--puppeteerConfigFile", str(cfg),
+        ]
+        try:
+            proc = subprocess.run(args, capture_output=True, timeout=MERMAID_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            raise ConversionError("Mermaid rendering timed out.") from None
+        if proc.returncode != 0 or not out_path.exists():
+            detail = proc.stderr.decode("utf-8", "replace").strip().splitlines()
+            raise ConversionError("\n".join(detail[-6:]) or "mermaid render failed")
+        return out_path.read_bytes()
+
+
+def _embed_mermaid(source: str, media_dir: Path) -> str:
+    """Replace ```mermaid blocks with rendered PNG images for static exports.
+
+    No-op when mmdc isn't installed, or when a diagram fails to render (the
+    block is left as code so the rest of the document still converts).
+    """
+    if not MMDC or not _MERMAID_BLOCK.search(source):
+        return source
+
+    count = 0
+
+    def replace(match: re.Match) -> str:
+        nonlocal count
+        indent, diagram = match.group(1), match.group(2)
+        try:
+            png = _render_mermaid_png(diagram.strip())
+        except ConversionError:
+            return match.group(0)
+        count += 1
+        path = media_dir / f"mermaid-{count}.png"
+        path.write_bytes(png)
+        return f"{indent}![Diagram]({path.as_posix()})"
+
+    return _MERMAID_BLOCK.sub(replace, source)
+
+
 def to_text(source: str, key: str) -> str:
     """Convert markdown ``source`` to a text format. Returns a string."""
     fmt = TEXT_FORMATS.get(key)
@@ -196,6 +256,11 @@ def to_text(source: str, key: str) -> str:
         args.append(f"--metadata=title:{_document_title(source)}")
 
     with tempfile.TemporaryDirectory() as tmp:
+        # Standalone HTML inlines images (--embed-resources), so rendered mermaid
+        # diagrams travel with the file. Other text formats keep the code block
+        # (a temp image path would dangle once this directory is cleaned up).
+        if key == "html_doc":
+            source = _embed_mermaid(source, Path(tmp))
         for arg in fmt.extra_args:
             if arg == "__inline_css__":
                 css_path = Path(tmp) / "markdownland.css"
@@ -542,6 +607,8 @@ def to_binary(source: str, key: str) -> bytes:
     timeout = PDF_TIMEOUT if fmt.needs_tectonic else TEXT_TIMEOUT
     # Pandoc must write binary formats to a real file, not stdout.
     with tempfile.TemporaryDirectory() as tmp:
+        # Render ```mermaid blocks to images so flowcharts appear in PDF/DOCX/etc.
+        source = _embed_mermaid(source, Path(tmp))
         out_path = Path(tmp) / f"out.{fmt.extension}"
         args = [pandoc, "-f", INPUT_FORMAT]
         if fmt.pandoc_to:
@@ -574,4 +641,5 @@ def health() -> dict[str, object]:
         "pandoc": version(PANDOC),
         "tectonic": version(TECTONIC),
         "pdftotext": version(PDFTOTEXT),
+        "mmdc": version(MMDC),
     }
