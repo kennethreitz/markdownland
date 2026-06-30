@@ -122,6 +122,11 @@ TEXT_FORMATS: dict[str, TextFormat] = {
         TextFormat("gfm", "Markdown (GFM)", "gfm", "md", "text/markdown"),
         TextFormat("org", "Org-mode", "org", "org", "text/x-org"),
         TextFormat("asciidoc", "AsciiDoc", "asciidoc", "adoc", "text/plain"),
+        TextFormat("typst", "Typst", "typst", "typ", "text/x-typst"),
+        TextFormat("mediawiki", "MediaWiki", "mediawiki", "wiki", "text/plain"),
+        TextFormat("textile", "Textile", "textile", "textile", "text/plain"),
+        TextFormat("docbook", "DocBook", "docbook5", "dbk", "application/docbook+xml",
+                   standalone=True),
         TextFormat("plain", "Plain text", "plain", "txt", "text/plain"),
     ]
 }
@@ -151,6 +156,10 @@ BINARY_FORMATS: dict[str, BinaryFormat] = {
             "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         ),
         BinaryFormat("epub", "EPUB", "epub", "application/epub+zip"),
+        BinaryFormat("rtf", "RTF", "rtf", "application/rtf",
+                     pandoc_to="rtf", extra_args=("-s",)),
+        BinaryFormat("fb2", "FB2", "fb2", "application/x-fictionbook+xml",
+                     pandoc_to="fb2"),
     ]
 }
 

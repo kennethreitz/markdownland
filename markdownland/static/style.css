@@ -47,20 +47,35 @@ body {
 .tools-status .bad { color: var(--bad); }
 
 /* ---- main split ---- */
+/* --editor-w drives the editor column; the drag handle (.resizer) sets it to a
+   px value at runtime. Default is proportional. */
 .layout {
+  --editor-w: minmax(18rem, .95fr);
   flex: 1; display: grid;
-  grid-template-columns: minmax(18rem, .95fr) minmax(24rem, 1.25fr) minmax(17rem, .65fr);
+  grid-template-columns: var(--editor-w) minmax(24rem, 1.25fr) minmax(17rem, .65fr);
   min-height: 0;
 }
 .pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .editor-pane, .preview-pane { border-right: 1px solid var(--line); }
+.editor-pane { position: relative; }  /* anchors the resize handle */
 
 /* Inspector collapsed (default): drop the third column and its divider. */
 .layout.inspector-closed {
-  grid-template-columns: minmax(18rem, .95fr) minmax(24rem, 1.6fr);
+  grid-template-columns: var(--editor-w) minmax(24rem, 1.6fr);
 }
 .layout.inspector-closed .inspector-pane { display: none; }
 .layout.inspector-closed .preview-pane { border-right: 0; }
+
+/* Drag handle straddling the editor/preview border. */
+.resizer {
+  position: absolute; top: 0; right: -3px; width: 7px; height: 100%;
+  cursor: col-resize; z-index: 20; touch-action: none;
+}
+.resizer::after {
+  content: ""; position: absolute; inset: 0 3px; background: transparent;
+  transition: background .12s;
+}
+.resizer:hover::after, .resizer.dragging::after { background: var(--accent); }
 
 .topbar-right { display: flex; align-items: center; gap: 1rem; }
 #inspector-toggle.active, #latex-toggle.active { border-color: var(--accent); color: var(--accent); }
@@ -341,6 +356,7 @@ body {
 
 @media (max-width: 1100px) {
   .layout { grid-template-columns: 1fr 1fr; grid-template-rows: minmax(0, 1fr) 18rem; }
+  .resizer { display: none; }  /* stacked layout: no horizontal split to drag */
   .preview-pane { border-right: 0; }
   .inspector-pane {
     grid-column: 1 / -1; border-top: 1px solid var(--line);

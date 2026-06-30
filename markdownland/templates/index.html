@@ -56,6 +56,7 @@
           hx-post="/preview" hx-target="#preview" hx-trigger="load, input changed delay:400ms"
           hx-include="this" placeholder="# Start typing your markdown…">{{ sample }}</textarea>
       </form>
+      <div class="resizer" id="resizer" title="Drag to resize" role="separator" aria-orientation="vertical"></div>
     </section>
 
     <section class="pane preview-pane">
@@ -118,6 +119,46 @@
         const open = layout.classList.contains("inspector-closed");
         try { localStorage.setItem(KEY, open ? "open" : "closed"); } catch {}
         apply(open);
+      });
+    })();
+
+    // Resizable editor/preview split: drag the handle to set the editor width.
+    (() => {
+      const KEY = "markdownland:editor-w";
+      const layout = document.querySelector(".layout");
+      const resizer = document.getElementById("resizer");
+      if (!layout || !resizer) return;
+      const saved = localStorage.getItem(KEY);
+      if (saved) layout.style.setProperty("--editor-w", saved);
+
+      let dragging = false;
+      const setWidth = (clientX) => {
+        const rect = layout.getBoundingClientRect();
+        const min = 240, max = rect.width - 320; // leave room for the preview
+        const w = Math.max(min, Math.min(max, clientX - rect.left));
+        layout.style.setProperty("--editor-w", w + "px");
+      };
+      resizer.addEventListener("pointerdown", (e) => {
+        dragging = true;
+        resizer.setPointerCapture(e.pointerId);
+        resizer.classList.add("dragging");
+        document.body.style.cursor = "col-resize";
+      });
+      resizer.addEventListener("pointermove", (e) => { if (dragging) setWidth(e.clientX); });
+      const end = (e) => {
+        if (!dragging) return;
+        dragging = false;
+        resizer.releasePointerCapture(e.pointerId);
+        resizer.classList.remove("dragging");
+        document.body.style.cursor = "";
+        try { localStorage.setItem(KEY, layout.style.getPropertyValue("--editor-w")); } catch {}
+      };
+      resizer.addEventListener("pointerup", end);
+      resizer.addEventListener("pointercancel", end);
+      // Double-click resets to the proportional default.
+      resizer.addEventListener("dblclick", () => {
+        layout.style.removeProperty("--editor-w");
+        try { localStorage.removeItem(KEY); } catch {}
       });
     })();
 
