@@ -11,6 +11,7 @@
   <script src="/static/tables.js" defer></script>
   <script src="/static/lists.js" defer></script>
   <script src="/static/shortcuts.js" defer></script>
+  <script src="/static/highlighter.js" defer></script>
   <script src="/static/app.js" defer></script>
   <script src="/static/mermaid.js" type="module"></script>
 </head>
@@ -54,9 +55,12 @@
         <button type="button" class="btn small" data-action="clear">Clear</button>
       </div>
       <form id="md-form">
-        <textarea id="source" name="source" spellcheck="false"
-          hx-post="/preview" hx-target="#preview" hx-trigger="load, input changed delay:400ms"
-          hx-include="this" placeholder="# Start typing your markdown…">{{ sample }}</textarea>
+        <div class="editor-wrap">
+          <div id="highlight" class="editor-highlight" aria-hidden="true"></div>
+          <textarea id="source" name="source" spellcheck="false"
+            hx-post="/preview" hx-target="#preview" hx-trigger="load, input changed delay:400ms"
+            hx-include="this" placeholder="# Start typing your markdown…">{{ sample }}</textarea>
+        </div>
       </form>
       <div class="resizer" id="resizer" title="Drag to resize" role="separator" aria-orientation="vertical"></div>
     </section>

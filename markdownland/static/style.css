@@ -123,11 +123,29 @@ body {
 .markdown-body .mermaid { text-align: center; margin: 1.2rem 0; }
 
 #md-form { flex: 1; display: flex; min-height: 0; }
-#source {
-  flex: 1; width: 100%; border: 0; resize: none; padding: 1rem 1.1rem;
+
+/* Syntax-highlight overlay: a styled <div> mirrors the text behind a
+   transparent textarea. The two MUST share identical box/font metrics so the
+   caret stays aligned (monospace bold has the same advance width). */
+.editor-wrap { position: relative; flex: 1; min-height: 0; }
+#source, .editor-highlight {
+  position: absolute; inset: 0; margin: 0; border: 0;
+  padding: 1rem 1.1rem; box-sizing: border-box;
   font: 13.5px/1.6 ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  background: var(--panel); color: var(--ink); outline: none; tab-size: 2;
+  tab-size: 2; white-space: pre-wrap; overflow-wrap: break-word;
+  scrollbar-gutter: stable;
 }
+.editor-highlight {
+  overflow: hidden; pointer-events: none; z-index: 0;
+  color: var(--ink); background: var(--panel);
+}
+.editor-highlight .hl-h { font-weight: 700; }
+#source {
+  overflow: auto; resize: none; outline: none; z-index: 1;
+  background: transparent; color: transparent; caret-color: var(--ink);
+}
+#source::placeholder { color: var(--muted); }
+#source::selection { background: color-mix(in srgb, var(--accent) 28%, transparent); }
 
 .preview-pane #preview { flex: 1; overflow: auto; padding: 1.25rem 1.6rem; }
 
