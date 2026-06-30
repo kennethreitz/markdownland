@@ -8,8 +8,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         nodejs npm chromium fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
-# mermaid-cli, told to use the system Chromium instead of downloading its own.
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=1 \
+# mermaid-cli, told to use the apt-installed Chromium instead of downloading
+# its own. Both SKIP vars are set (puppeteer renamed it across versions) so the
+# `npm install` below does NOT pull a ~150MB Chrome at build time.
+ENV PUPPETEER_SKIP_DOWNLOAD=true \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 RUN npm install -g @mermaid-js/mermaid-cli && npm cache clean --force
 

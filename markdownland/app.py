@@ -15,14 +15,24 @@ from urllib.parse import parse_qs
 
 import responder
 
-from . import analyzer, convert, validators
+from . import analyzer, convert, openapi, validators
 
 _PKG = Path(__file__).resolve().parent
+
+_DESCRIPTION = """\
+Convert markdown to (and from) **anything**, via pandoc.
+
+Most endpoints accept a form field **`source`** (your markdown) and return the
+requested format. Conversions shell out to pandoc — plus tectonic for PDF,
+poppler for PDF import, and mermaid-cli for diagrams — so availability depends
+on which tools are installed (see **`GET /health`** and **`GET /formats`**).
+"""
 
 api = responder.API(
     title="markdownland",
     version="0.1.0",
-    description="Convert markdown to anything, via pandoc.",
+    description=_DESCRIPTION,
+    contact={"name": "markdownland", "url": "https://responder.kennethreitz.org/"},
     # Enables the OpenAPI schema at /schema.yml that the /docs/ UI fetches.
     openapi="3.0.3",
     docs_route="/docs/",
@@ -94,7 +104,13 @@ def _download_name(data, extension: str) -> str:
     return f"{stem or 'document'}.{extension}"
 
 
-@api.route("/")
+@api.route(
+    "/",
+    tags=[openapi.TAG_APP],
+    summary="The markdownland editor",
+    description="Serves the single-page app: drag-and-drop editor, live preview, and exports.",
+    responses={200: "The editor HTML page."},
+)
 async def index(req, resp):
     resp.html = api.template(
         "index.html",
@@ -106,7 +122,15 @@ async def index(req, resp):
     )
 
 
-@api.route("/import/html")
+@api.route(
+    "/import/html",
+    tags=[openapi.TAG_IMPORT],
+    summary="Rich text (HTML) → markdown",
+    description="Converts pasted HTML / rich text to GFM markdown via pandoc.",
+    openapi_extra=openapi.HTML_BODY,
+    response_examples={200: openapi.EXAMPLE_IMPORT_HTML},
+    methods=["POST"],
+)
 async def import_html(req, resp):
     """Convert pasted rich text (HTML) to markdown for the editor."""
     data = await _read_form(req)
@@ -121,7 +145,16 @@ async def import_html(req, resp):
         resp.media = {"error": str(exc)}
 
 
-@api.route("/import/file")
+@api.route(
+    "/import/file",
+    tags=[openapi.TAG_IMPORT],
+    summary="Upload a file → markdown",
+    description="Imports DOCX, PDF, HTML, ODT, EPUB, RTF, PPTX, and more as markdown.",
+    openapi_extra=openapi.FILE_BODY,
+    response_examples={200: openapi.EXAMPLE_IMPORT_FILE, 400: openapi.EXAMPLE_ERROR},
+    responses={400: "No file uploaded.", 422: "Unsupported or unreadable file."},
+    methods=["POST"],
+)
 async def import_file(req, resp):
     """Import a dropped non-markdown file (docx, html, rtf, …) as markdown."""
     files = await req.media("files")
@@ -141,7 +174,16 @@ async def import_file(req, resp):
     resp.media = {"markdown": markdown, "filename": name}
 
 
-@api.route("/preview")
+@api.route(
+    "/preview",
+    tags=[openapi.TAG_APP],
+    summary="Live preview fragment",
+    description="Renders `source` to HTML and returns it plus out-of-band inspector / "
+    "validation panels (consumed by HTMX).",
+    openapi_extra=openapi.SOURCE_BODY,
+    responses={200: "An HTML fragment (rendered preview + OOB panels)."},
+    methods=["POST"],
+)
 async def preview(req, resp):
     """Live HTML preview + validation, returned as HTMX fragments.
 
@@ -165,7 +207,16 @@ async def preview(req, resp):
     resp.html = body + _inspector_fragment(analysis, report) + _lint_fragment(report)
 
 
-@api.route("/text/{key}")
+@api.route(
+    "/text/{key}",
+    tags=[openapi.TAG_CONVERT],
+    summary="Convert to a text format",
+    description="Converts `source` to text format `key` (html, latex, rst, gfm, org, typst, "
+    "mediawiki, textile, docbook, asciidoc, plain). Add `download=1` for an attachment.",
+    openapi_extra=openapi.SOURCE_BODY,
+    responses=openapi.ERROR_RESPONSES,
+    methods=["POST"],
+)
 async def text(req, resp, *, key):
     """Return a converted text format as raw text (for copy + download)."""
     data = await _read_form(req)
@@ -190,7 +241,16 @@ async def text(req, resp, *, key):
         )
 
 
-@api.route("/download/{key}")
+@api.route(
+    "/download/{key}",
+    tags=[openapi.TAG_CONVERT],
+    summary="Download a binary format",
+    description="Renders `source` to a binary format `key` (pdf, docx, odt, pptx, epub, rtf, fb2) "
+    "and returns it as a file attachment.",
+    openapi_extra=openapi.DOWNLOAD_EXTRA,
+    responses=openapi.ERROR_RESPONSES,
+    methods=["POST"],
+)
 async def download(req, resp, *, key):
     """Return a binary format (PDF, DOCX, …) as a file attachment."""
     data = await _read_form(req)
@@ -217,7 +277,16 @@ async def download(req, resp, *, key):
     )
 
 
-@api.route("/validate")
+@api.route(
+    "/validate",
+    tags=[openapi.TAG_INSPECT],
+    summary="Validate for publishing",
+    description="Returns publishing-readiness findings — relative links, local images, "
+    "wikilinks, raw HTML, heading skips, duplicate anchors, unclosed fences, and more.",
+    openapi_extra=openapi.SOURCE_BODY,
+    response_examples={200: openapi.EXAMPLE_VALIDATE},
+    methods=["POST"],
+)
 async def validate(req, resp):
     """Validation findings as JSON (the UI uses the /preview OOB panel)."""
     data = await _read_form(req)
@@ -238,7 +307,15 @@ async def validate(req, resp):
     }
 
 
-@api.route("/analyze")
+@api.route(
+    "/analyze",
+    tags=[openapi.TAG_INSPECT],
+    summary="Analyze the document",
+    description="Title, word/read-time stats, heading outline, and a publish-readiness score.",
+    openapi_extra=openapi.SOURCE_BODY,
+    response_examples={200: openapi.EXAMPLE_ANALYZE},
+    methods=["POST"],
+)
 async def analyze(req, resp):
     """Document intelligence as JSON: stats, outline, and publish score."""
     data = await _read_form(req)
@@ -247,12 +324,24 @@ async def analyze(req, resp):
     resp.media = _analysis_payload(analyzer.analyze(source), report)
 
 
-@api.route("/health")
+@api.route(
+    "/health",
+    tags=[openapi.TAG_META],
+    summary="Service health & tool versions",
+    description="Reports `ok` and the detected versions of pandoc, tectonic, pdftotext, and mmdc.",
+    response_examples={200: openapi.EXAMPLE_HEALTH},
+)
 async def health(req, resp):
     resp.media = {"status": "ok", "tools": convert.health()}
 
 
-@api.route("/formats")
+@api.route(
+    "/formats",
+    tags=[openapi.TAG_META],
+    summary="Supported formats & availability",
+    description="Import/export catalog with each format's tools and live availability.",
+    response_examples={200: openapi.EXAMPLE_FORMATS},
+)
 async def formats(req, resp):
     """Supported import/export formats as JSON, with live tool availability."""
     resp.media = convert.format_catalog()
