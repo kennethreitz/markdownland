@@ -3,6 +3,7 @@
   "use strict";
 
   const source = document.getElementById("source");
+  const preview = document.getElementById("preview");
   const dropzone = document.getElementById("dropzone");
   const dropzoneMeta = document.getElementById("dropzone-meta");
   const toast = document.getElementById("toast");
@@ -87,6 +88,43 @@
   function setBusy(btn, busy) {
     btn.classList.toggle("busy", busy);
     btn.toggleAttribute("aria-busy", busy);
+  }
+
+  function maxScroll(el) {
+    return Math.max(0, el.scrollHeight - el.clientHeight);
+  }
+
+  function clampRatio(n) {
+    return Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0));
+  }
+
+  function scrollRatio(el) {
+    const max = maxScroll(el);
+    return max ? el.scrollTop / max : 0;
+  }
+
+  function setScrollRatio(el, ratio) {
+    el.scrollTop = clampRatio(ratio) * maxScroll(el);
+  }
+
+  let scrollSyncTarget = null;
+  let scrollSyncFrame = 0;
+  function syncScroll(from, to) {
+    if (!from || !to) return;
+    if (scrollSyncTarget === from) {
+      scrollSyncTarget = null;
+      return;
+    }
+    const ratio = scrollRatio(from);
+    cancelAnimationFrame(scrollSyncFrame);
+    scrollSyncFrame = requestAnimationFrame(() => {
+      scrollSyncTarget = to;
+      setScrollRatio(to, ratio);
+      if (to === source) source.dispatchEvent(new Event("scroll"));
+      setTimeout(() => {
+        if (scrollSyncTarget === to) scrollSyncTarget = null;
+      }, 80);
+    });
   }
 
   function lineBounds(text, lineNumber) {
@@ -245,6 +283,14 @@
     const jump = e.target.closest(".lint-jump[data-line]");
     if (!jump) return;
     scrollEditorToLine(jump.dataset.line);
+  });
+
+  // Keep the editor and rendered preview moving together. The two documents
+  // rarely have identical heights, so this mirrors scroll progress by ratio.
+  source.addEventListener("scroll", () => syncScroll(source, preview));
+  preview.addEventListener("scroll", () => syncScroll(preview, source));
+  document.addEventListener("htmx:afterSwap", (e) => {
+    if (e.target === preview) syncScroll(source, preview);
   });
 
   // ---- action buttons -------------------------------------------------------

@@ -38,6 +38,14 @@ def test_api_docs_route_is_available_at_docs_slash():
     assert "markdownland" in r.text
 
 
+def test_client_script_includes_scroll_sync():
+    r = client.get("/static/app.js")
+    assert r.status_code == 200
+    assert "syncScroll(source, preview)" in r.text
+    assert "syncScroll(preview, source)" in r.text
+    assert "htmx:afterSwap" in r.text
+
+
 def test_health_reports_tools():
     r = client.get("/health")
     assert r.status_code == 200
