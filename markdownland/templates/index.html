@@ -86,29 +86,65 @@
   <footer class="actionbar">
     <div class="group">
       <span class="group-label">Download</span>
-      {% for f in binary_formats %}
-      <button type="button" class="btn download" data-kind="download" data-key="{{ f.key }}"
-        {% if f.key == 'pdf' and not tools.tectonic %}disabled title="tectonic not installed"{% endif %}>
-        {{ f.label }}
-      </button>
-      {% endfor %}
+      <button type="button" class="btn download" data-kind="download" data-key="pdf"
+        {% if not tools.tectonic %}disabled title="tectonic not installed"{% endif %}>PDF</button>
+      <button type="button" class="btn download" data-kind="download" data-key="docx">DOCX</button>
       <button type="button" class="btn download" data-kind="source-download">Markdown</button>
       <button type="button" class="btn download" data-kind="text-download" data-key="html_doc">HTML</button>
-      <button type="button" class="btn download" data-kind="text-download" data-key="latex">LaTeX</button>
+      <div class="menu">
+        <button type="button" class="btn menu-toggle" aria-expanded="false">More ▾</button>
+        <div class="menu-items" hidden>
+          <button type="button" class="btn" data-kind="text-download" data-key="latex">LaTeX source</button>
+          {% for f in binary_formats if f.key not in ['pdf', 'docx'] %}
+          <button type="button" class="btn" data-kind="download" data-key="{{ f.key }}">{{ f.label }}</button>
+          {% endfor %}
+        </div>
+      </div>
     </div>
 
     <div class="group">
       <span class="group-label">Copy as</span>
       <button type="button" class="btn copy" data-kind="copy-rich">Rich text</button>
-      {% for f in text_formats %}
-      <button type="button" class="btn copy" data-kind="copy" data-key="{{ f.key }}">{{ f.label }}</button>
-      {% endfor %}
+      <button type="button" class="btn copy" data-kind="copy" data-key="html">HTML</button>
+      <button type="button" class="btn copy" data-kind="copy" data-key="gfm">Markdown</button>
+      <button type="button" class="btn copy" data-kind="copy" data-key="plain">Plain text</button>
+      <div class="menu">
+        <button type="button" class="btn menu-toggle" aria-expanded="false">More ▾</button>
+        <div class="menu-items" hidden>
+          {% for f in text_formats if f.key not in ['html', 'gfm', 'plain'] %}
+          <button type="button" class="btn" data-kind="copy" data-key="{{ f.key }}">{{ f.label }}</button>
+          {% endfor %}
+        </div>
+      </div>
     </div>
 
     <div id="toast" class="toast" hidden></div>
   </footer>
 
   <script>
+    // "More" format menus in the action bar (open upward; close on outside/Esc).
+    (() => {
+      const bar = document.querySelector(".actionbar");
+      if (!bar) return;
+      const closeAll = (except) => bar.querySelectorAll(".menu-items").forEach((m) => {
+        if (m !== except) { m.hidden = true; m.previousElementSibling.setAttribute("aria-expanded", "false"); }
+      });
+      bar.addEventListener("click", (e) => {
+        const toggle = e.target.closest(".menu-toggle");
+        if (toggle) {
+          const items = toggle.parentElement.querySelector(".menu-items");
+          const open = items.hidden;
+          closeAll(open ? items : null);
+          items.hidden = !open;
+          toggle.setAttribute("aria-expanded", open ? "true" : "false");
+        } else if (e.target.closest("button[data-kind]")) {
+          closeAll(); // a format was chosen — dismiss the menu
+        }
+      });
+      document.addEventListener("click", (e) => { if (!e.target.closest(".menu")) closeAll(); });
+      document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAll(); });
+    })();
+
     // Inspector panel: closed by default, toggled from the top bar, remembered.
     (() => {
       const KEY = "markdownland:inspector";
