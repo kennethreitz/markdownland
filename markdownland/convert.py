@@ -18,7 +18,10 @@ from typing import Any
 
 # Pandoc's extended markdown is the richest reader (tables, math, footnotes,
 # definition lists, ...). ``tex_math_dollars`` lets people write $x^2$ math.
-INPUT_FORMAT = "markdown+tex_math_dollars+emoji"
+# ``hard_line_breaks`` makes a single newline render as a real line break (so
+# poetry, addresses, and lyrics keep their line breaks in every output format)
+# instead of being collapsed into a space.
+INPUT_FORMAT = "markdown+tex_math_dollars+emoji+hard_line_breaks"
 
 PANDOC = shutil.which("pandoc")
 TECTONIC = shutil.which("tectonic")

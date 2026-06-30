@@ -7,6 +7,14 @@ import pytest
 from markdownland import convert
 
 
+def test_single_newlines_render_as_line_breaks():
+    # Poetry / lyrics: a single newline must become a real break, not a space.
+    html = convert.to_text("Roses are red,\nViolets are blue,", "html")
+    assert "<br" in html
+    latex = convert.to_text("Roses are red,\nViolets are blue,", "latex")
+    assert "\\\\" in latex
+
+
 def test_clean_pdf_text_dedents_and_drops_page_number():
     # pdftotext -layout output: page-margin indent + a trailing page number.
     raw = "    Title\n\n      Indented line\n\n    12\f    Page two\n"
